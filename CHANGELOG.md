@@ -199,7 +199,7 @@ cmake -B build -DGGML_HIP=ON -DAMDGPU_TARGETS=gfx1100
 cmake --build build -j$(nproc)
 ```
 
-Requires ROCm 6.x or 7.x. `GGML_HIP_TMAC=ON` is the default.
+Requires ROCm (tested with 7.1; 6.x expected to work). `GGML_HIP_TMAC=ON` is the default.
 
 ### Known Limitations
 

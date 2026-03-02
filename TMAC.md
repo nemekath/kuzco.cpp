@@ -84,7 +84,7 @@ cmake --build build -j$(nproc)
 
 `GGML_HIP_TMAC=ON` is the default in this fork. No extra flags needed.
 
-**Requirements:** ROCm 6.x or 7.x, AMD GPU with RDNA3 architecture.
+**Requirements:** ROCm (tested with 7.1; 6.x expected to work), AMD GPU with RDNA3 architecture.
 
 ## Usage
 

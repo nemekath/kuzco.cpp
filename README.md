@@ -109,7 +109,7 @@ intervals and p-values: [docs/tmac/benchmarks.md](docs/tmac/benchmarks.md)
 ### Prerequisites
 
 - AMD RDNA3 GPU (RX 7900 series validated)
-- [ROCm 6.x or later](https://rocm.docs.amd.com/)
+- [ROCm](https://rocm.docs.amd.com/) (tested with 7.1; 6.x expected to work but untested)
 - CMake 3.21+, C++17 compiler
 
 ### Build
