@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# post-commit — Trigger NFS backup in background after every commit
+#
+# Runs backup.sh with --hook flag (silent failures, always exit 0).
+# Returns immediately — backup runs detached in background.
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+export BACKUP_DIR="${BACKUP_DIR:-/mnt/truenas-backup/kuzco-cpp}"
+nohup "${REPO_ROOT}/scripts/backup.sh" --hook >/dev/null 2>&1 &

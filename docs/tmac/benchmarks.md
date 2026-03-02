@@ -1,0 +1,365 @@
+# T-MAC: Benchmark Results & Validation Data
+
+> Version numbers (v7.x–v9.x, v1.0–v1.6) in this document refer to internal
+> development milestones and pre-releases. The first public release is v1.0.0.
+
+---
+
+## Prefill (pp512) Verification (2026-02-21, updated 2026-02-22)
+
+T-MAC guards reject batch>1 (ne[1]!=1), so pp512 falls back to stock automatically.
+
+**Q4_0 (zero impact confirmed):**
+
+| Model | Test | T-MAC ON | T-MAC OFF | Delta |
+|-------|------|----------|-----------|-------|
+| 1B | pp512 | 15,898 t/s | 15,628 t/s | +1.7% (noise) |
+| 1B | pp2048 | 12,979 t/s | 12,984 t/s | 0.0% (noise) |
+
+**Q4_K_M (regression fixed):**
+
+Pre-fix regression was caused by a T-MAC override in `ggml_cuda_should_use_mmq()` (mmq.cu)
+that forced MMQ for all T-MAC-supported types regardless of batch size. This overrode the
+RDNA3 heuristic that routes Q6_K to hipBLAS when ne11 > 128, which is faster for large
+batches. Fix: removed the override (4 lines). RDNA3 heuristics now apply correctly.
+
+| Model | Test | T-MAC ON | T-MAC OFF | Delta | Notes |
+|-------|------|----------|-----------|-------|-------|
+| 1B | pp512 (N=10) | 15,426 ± 173 | 15,367 ± 54 | +0.4% (p=0.30) | Was -8.9% |
+| 22B | pp512 (N=10) | 1,156 ± 5.6 | 1,156 ± 6.3 | -0.0% (p=0.90) | Was -8.0% |
+| OLMoE | pp512 (N=10) | 8,559 ± 37 | 8,552 ± 32 | +0.1% (p=0.49) | Was -3.5% |
+| 1B | pp2048 | 12,600 t/s | 12,541 t/s | +0.5% (noise) | Long context clean |
+| 22B | pp2048 | 962 t/s | 961 t/s | +0.1% (noise) | Long context clean |
+
+**Perplexity (wikitext-2, 564 chunks, ctx=512):** T-MAC 14.4994 ± 0.108, Stock 14.4994 ± 0.108 (Δ=0.000, PASS)
+
+---
+
+## Current Baseline
+
+Statistical benchmarks: single GPU (7900 XTX), `tg128`. Q4_K_M: N=10 paired interleaved.
+Q4_0: N=12 (llama-bench aggregate). Paired t-test, 95% CI via t-distribution. 2026-02-22.
+
+**Q4_0 models (N=12 llama-bench aggregate, ± = 95% CI via t-distribution df=11):**
+
+| Model | Type | Params | Stock (mean ± 95% CI) | T-MAC (mean ± 95% CI) | Speedup [95% CI] | p-value |
+|-------|------|--------|----------------------:|----------------------:|------------------:|--------:|
+| Llama 3.2 1B | Dense | 1.24B | 419.37 ± 0.70 t/s | 481.64 ± 1.43 t/s | **+14.8%** [+14.5%, +15.2%] | — |
+| Codestral 22B | Dense | 22.25B | 47.68 ± 0.06 t/s | 49.54 ± 0.04 t/s | **+3.9%** [+3.7%, +4.1%] | 1.5e-11 |
+| Nemotron 30B | MoE | 31.58B | 144.47 ± 0.17 t/s | 155.85 ± 0.07 t/s | **+7.9%** [+7.7%, +8.0%] | 1.6e-14 |
+| OLMoE-1B-7B | MoE | 6.92B | 363.49 ± 0.66 t/s | 401.20 ± 1.16 t/s | **+10.4%** [+10.0%, +10.7%] | — |
+
+**Q4_K_M models (N=10 paired interleaved A-B-A-B, ± = 95% CI):**
+
+| Model | Type | Params | Stock (mean ± 95% CI) | T-MAC (mean ± 95% CI) | Speedup [95% CI] | p-value |
+|-------|------|--------|----------------------:|----------------------:|------------------:|--------:|
+| Llama 3.2 1B | Dense | 1.24B | 373.43 ± 0.52 t/s | 449.38 ± 0.90 t/s | **+20.3%** [+20.1%, +20.6%] | 1.1e-18 |
+| Codestral 22B | Dense | 22.25B | 40.03 ± 0.13 t/s | 45.66 ± 0.04 t/s | **+14.1%** [+13.7%, +14.4%] | 3.3e-15 |
+| OLMoE-1B-7B | MoE | 6.92B | 324.77 ± 0.54 t/s | 372.87 ± 0.68 t/s | **+14.8%** [+14.5%, +15.1%] | 1.9e-15 |
+| GLM-4.7-Flash | MLA+MoE | ~16B | 87.36 ± 0.16 t/s | 100.67 ± 0.24 t/s | **+15.2%** [+14.9%, +15.6%] | 1.3e-16 |
+| Ministral 14B | Dense | 14B | 64.04 ± 0.11 t/s | 73.04 ± 0.11 t/s | **+14.1%** [+13.8%, +14.3%] | 1.2e-16 |
+| QwQ-32B | Dense | 32B | 29.88 ± 0.06 t/s | 33.92 ± 0.06 t/s | **+13.5%** [+13.2%, +13.8%] | 4.5e-15 |
+
+GLM was -12.1% before nb_sub guard fix (ne0=512 → nb_sub=16, 50% warp utilization).
+
+**Additional validated models (N=10 paired interleaved, ± = 95% CI):**
+
+| Model | Type | Params | Quant | Stock (mean ± 95% CI) | T-MAC (mean ± 95% CI) | Speedup [95% CI] | p-value |
+|-------|------|--------|-------|----------------------:|----------------------:|------------------:|--------:|
+| Granite 4.0-h-small | Dense | ~2B | Q4_K_M | 61.26 ± 0.10 t/s | 67.33 ± 0.11 t/s | **+9.9%** [+9.7%, +10.2%] | 1.1e-16 |
+| Jamba-Reasoning 3B | SSM-hybrid | 3.20B | Q4_K_M | 163.67 ± 0.23 t/s | 184.18 ± 0.21 t/s | **+12.5%** [+12.3%, +12.7%] | <1e-15 |
+| Nemotron-3-Nano 30B | MoE | 31.58B | Q4_K_M | 130.53 ± 2.32 t/s | 130.80 ± 4.56 t/s | **+0.2%** (NS) | 0.91 |
+| Devstral-Small 24B | Dense | 24B | Q6_K_L | 35.79 ± 0.30 t/s | 37.75 ± 0.35 t/s | **+5.5%** [+4.2%, +6.8%] | 2.2e-05 |
+
+Devstral lower gain explained: Q6_K_L quant has mostly Q6_K tensors (larger 210-byte blocks,
+better stock bandwidth utilization). Granite lower than smoke test: single-run noise in
+llama-completion-based smoke test vs precise llama-bench N=10 measurement.
+Jamba SSM-hybrid +12.5%: closes architecture gap (Dense, MoE, MLA, SSM-hybrid all validated).
+Nemotron Q4_K_M +0.2% (NS): **VRAM-pressure artifact**, not a real result. Model = 23 GB on
+24 GB VRAM (<1 GB headroom). CV=4.9% (16-40x normal). Cannot isolate quant variable — VRAM
+constraint confounds. Compare Nemotron Q4_0 = +7.9% at 18 GB (comfortable 6 GB headroom).
+
+**IQ Quantization types (N=10 paired interleaved, ± = 95% CI):**
+
+| Model | Type | Params | Quant | Stock (mean ± 95% CI) | T-MAC (mean ± 95% CI) | Speedup [95% CI] | p-value |
+|-------|------|--------|-------|----------------------:|----------------------:|------------------:|--------:|
+| Llama 3.2 1B | Dense | 1.24B | IQ3_XXS | — | — | **+36.6%** | <1e-6 |
+| Llama 3.2 1B | Dense | 1.24B | IQ3_S | 367.4 ± 0.5 t/s | 493.8 ± 1.1 t/s | **+34.4%** [+34.0%, +34.8%] | <1e-15 |
+| OLMoE-1B-7B | MoE | 6.92B | IQ3_S | 313.1 ± 0.8 t/s | 404.3 ± 1.6 t/s | **+29.1%** [+28.7%, +29.6%] | <1e-15 |
+| OLMoE-1B-7B | MoE | 6.92B | IQ3_XXS | 319.0 ± 2.3 t/s | 409.0 ± 1.6 t/s | **+28.2%** [+27.6%, +28.8%] | <1e-6 |
+| Llama 3.3 70B | Dense | 70.55B | IQ2_XXS | 13.93 ± 0.02 t/s | 17.52 ± 0.08 t/s | **+25.8%** | <1e-6 |
+| Llama 3.2 1B | Dense | 1.24B | IQ2_XXS | — | — | **+24.6%** | <1e-6 |
+| Llama 3.2 1B | Dense | 1.24B | IQ2_XS | — | — | **+17.4%** | <1e-6 |
+| Llama 3.2 1B | Dense | 1.24B | IQ4_XS | 424.2 ± 1.0 t/s | 471.4 ± 1.0 t/s | **+11.1%** [+10.8%, +11.4%] | <1e-15 |
+| Mixtral 8x7B | MoE | 46.70B | IQ3_S | 55.47 ± 0.06 t/s | 80.67 ± 0.09 t/s | **+45.4%** [+45.3%, +45.5%] | <1e-15 |
+| Llama 3.2 1B | Dense | 1.24B | IQ1_M | 451.5 ± 1.2 t/s | 505.3 ± 1.2 t/s | **+11.9%** [+11.7%, +12.2%] | <1e-15 |
+
+**Sign LUT elimination (2026-02-27):** IQ3_XXS, IQ2_XXS, IQ2_XS updated with sign LUT elimination results.
+IQ3_XXS 1B (+36.6%) is now T-MAC's highest single-GPU Dense speedup (was IQ3_S +34.4%).
+IQ2_XXS 1B improved from +22.3% to +24.6% after sign LUT elimination.
+OLMoE IQ3_XXS (+28.2%) validates sign LUT elimination on MoE path (64 experts / 8 active). Requantized model
+(Q4_K_M → IQ3_XXS with imatrix + --allow-requantize) — kernel validation, not community-distributed.
+
+Mixtral 8x7B IQ3_S (+45.4%) is the largest absolute speedup but measured on dual 7900 XTX
+layer split — not directly comparable to single-GPU results (dual-GPU sync overhead inflates
+stock baseline proportionally more, amplifying T-MAC's relative advantage).
+OLMoE IQ3_S (+29.1%) validates IQ support on smaller MoE architecture (SwiGLU fused).
+IQ2_XXS had a grid/block dimension bug (75% of output rows uncomputed → garbage) fixed
+2026-02-23. IQ2_XXS PPL verified: T-MAC = Stock = 50.7752 (Δ=0.000, wikitext-2).
+IQ4_XS re-measured with N=10 interleaved: +11.1% (was +6.4% at N=5 sequential).
+IQ1_M 1B (+11.9%) first pure-IQ1_M benchmark. N=10 paired interleaved, t=110.45. Scaleless design
+(no `d` field, super-block scale reassembled from packed scales). 8KB LDS (largest IQ LUT,
+25% CU occupancy — 4 workgroups / 16 max waves per CU). Requantized model (Q5_K_M → IQ1_M
+with imatrix) — kernel validation only, not a community-distributed model.
+IQ types use shared-memory LUT dequantization (breaks zero-smem principle, ~2-8KB LDS).
+
+**IQ Perplexity validation (wikitext-2, 564 chunks, ctx=512):**
+
+| Model | Quant | T-MAC PPL | Stock PPL | Delta |
+|-------|-------|-----------|-----------|-------|
+| Llama 3.2 1B | IQ2_XXS | 50.7752 ± 0.402 | 50.7752 ± 0.402 | 0.000 |
+| Llama 3.2 1B | IQ3_S | 16.3780 ± 0.121 | 16.3780 ± 0.121 | 0.000 |
+| Llama 3.2 1B | IQ4_XS | 14.6969 ± 0.110 | 14.6969 ± 0.110 | 0.000 |
+| Llama 3.3 70B | IQ2_XXS | 7.7333 ± 0.052 | 7.7333 ± 0.052 | 0.000 |
+| Llama 3.2 1B | Q5_0 | 16.0302 ± 0.283 | 16.0302 ± 0.283 | 0.000 |
+| Mixtral 8x7B | IQ3_S | 4.7367 ± 0.026 | 4.7367 ± 0.026 | 0.000 |
+| Llama 3.2 1B | Q3_K_L | 15.3342 ± 0.115 | 15.3342 ± 0.115 | 0.000 |
+| Llama 3.2 1B | IQ1_M | 211.4944 ± 1.810 | 211.4944 ± 1.810 | 0.000 |
+| Llama 3.2 1B | IQ3_XXS | 18.5678 | 18.5678 | 0.000 |
+| Llama 3.2 1B | IQ2_XS | 33.7614 | 33.7614 | 0.000 |
+
+All types are bit-identical to stock (Δ=0.000). Q5_0 PPL validated (Hard Blocker resolved).
+Mixtral 8x7B IQ3_S PPL validated (dual GPU, 642 chunks, ctx=512).
+Tier 2 coherence (temp=0) PASS for IQ3_S 1B, 70B IQ2_XXS, and Mixtral 8x7B IQ3_S (dual GPU,
+structured compiler guide with code examples, no drift through final token).
+PPL hierarchy: Mixtral IQ3_S (4.74) < IQ4_XS (14.70) < Q4_K_M (14.50) < Q5_0 (16.03) ≈ IQ3_S 1B (16.38) < IQ2_XXS 1B (50.78) < IQ1_M 1B (211.49).
+Note: Q5_0 PPL tested on requantized model (Q4_K_M → Q5_0), hence slightly higher than native Q5_0.
+IQ1_M PPL tested on requantized model (Q5_K_M → IQ1_M with imatrix + --allow-requantize). High absolute PPL (211.5) expected at 1.75 bpw on 1B model.
+
+**MXFP4 PPL validation (wikitext-2, 560 chunks, ctx=512):**
+
+| Model | Quant | T-MAC PPL | Stock PPL | Delta |
+|-------|-------|-----------|-----------|-------|
+| GPT-OSS 20B | Q4_K_M (MXFP4 experts) | 158.8331 ± 1.338 | 158.8331 ± 1.338 | 0.000 |
+
+MXFP4 bit-identical to stock (Δ=0.000). High absolute PPL (158.8) is a model/quant property, not T-MAC.
+All 17 quant types now validated: Δ=0.000 across the board.
+
+**MXFP4 models (N=10 paired interleaved, ± = 95% CI):**
+
+| Model | Type | Params | Quant | Stock (mean ± 95% CI) | T-MAC (mean ± 95% CI) | Speedup [95% CI] | p-value |
+|-------|------|--------|-------|----------------------:|----------------------:|------------------:|--------:|
+| GPT-OSS 20B | MoE | 20.91B | Q4_K_M (MXFP4 experts) | 172.42 ± 0.16 t/s | 187.85 ± 0.31 t/s | **+8.9%** [+8.7%, +9.1%] | 4.5e-15 |
+
+GPT-OSS 20B: 128 experts, 4 active (~5.1B active). Expert FFN tensors = MXFP4 (74.9% of GEMV FLOP).
+Active Ratio: 87.4% → 97.7% (MXFP4 now dispatched through T-MAC).
+GPT-OSS 120B (58.5 GiB, CPU offload): +2.9% (N=3, Amdahl bottleneck: PCIe + CPU offload overhead).
+
+**Preliminary (single-run smoke test, not yet statistically validated):**
+
+| Model | Type | Params | Quant | Speedup |
+|-------|------|--------|-------|--------:|
+| Nemotron-3-Nano 30B | MoE | 31.58B | Q4_K_M | +7.9%* |
+
+*Nemotron smoke test number is pre-nb_sub guard — may change slightly.
+
+**DeepSeek-R1:**
+
+| Model | Type | Params | Quant | Stock (N=3) | T-MAC (N=3) | Speedup |
+|-------|------|--------|-------|------------:|------------:|--------:|
+| DeepSeek-R1-Distill-Llama-8B | Dense | 8.03B | Q4_K_M | 100.58 ± 0.06 t/s | 120.38 ± 0.28 t/s | **+19.7%** |
+
+Active Ratio: 100% (1775/1775 ops). Compute Coverage: 100%. Llama architecture → validates seamlessly.
+
+**Model zoo validation (single-run smoke tests, 2026-02-25):**
+
+| Model | Type | Params | Quant | GPU Setup | t/s | Active Ratio | Compute Coverage |
+|-------|------|--------|-------|-----------|----:|:------------:|:----------------:|
+| Gemma 3 27B | SWA+Dense | 27B | Q6_K | Single | 31.92 | 100% | 100% |
+| Qwen3-30B-A3B | MoE | 30B | Q6_K | Dual | 108.81 | 97.2% | 99.2% |
+| Hermes 4 36B | Dense | 36B | Q6_K | Dual | 24.09 | 100% | 100% |
+| Phi-3.5 MoE | MoE | 42B | Q6_K_L | Dual | 95.21 | 97.2% | 95.0% |
+| Qwen3-Next-80B-A3B | MoE | 80B | Q4_K_M | Dual+CPU | 17.34 | ~100% | 98.0% |
+| Llama 4 Scout 17B-16E | MoE 16E | 109B | IQ2_XXS-UD | Dual | 44.62 | **100%** | **96.3%** |
+| Qwen3.5-122B-A10B | MoE | 122B | IQ2_XXS | Dual | 44.09 | **100%** | **99.6%** |
+
+Gemma 3 27B validates Sliding Window Attention. Qwen3-Next-80B validates CPU-offload path.
+Llama 4 Scout: aliasing fix restored 100% generation Active Ratio (was 86.4% before fix).
+96.3% Compute Coverage gap is from prefill-only MoE misses (ne2>1), harmless. 439 alias copies/token.
+MoE models consistently show 95-99% Compute Coverage — gap from fused-path guard conditions.
+Qwen3.5-122B-A10B: bartowski IQ2_XXS mixed quant with 111 IQ1_M tensors. Before IQ1_M kernel: 58% Active Ratio.
+After IQ1_M kernel (v1.5): 100% Active Ratio, 99.6% Compute Coverage (remaining 0.4% = 1 Q2_K tensor).
+Total validated: **26 models across 13 architecture families** (Dense, MoE, MLA+MoE, SSM-Hybrid, SWA, MXFP4-MoE, MoE+CPU-offload, ISWA-MoE, SSM-MoE, SSM-Hybrid-Mamba2, Pure-SSM, RWKV, VLM).
+
+**Architecture compatibility expansion (2026-02-27, N=5 llama-bench, ± = SD):**
+
+| Model | Type | Params | Quant | Stock (mean ± SD) | T-MAC (mean ± SD) | Speedup | Active Ratio |
+|-------|------|--------|-------|-------------------:|-------------------:|--------:|:------------:|
+| Falcon H1 7B | SSM-hybrid (Mamba2+Attn) | 7.59B | Q4_K_M | 64.02 ± 0.04 t/s | 74.76 ± 0.09 t/s | **+16.8%** | 100% |
+| Mamba 2.8B | Pure SSM (Mamba) | 2.77B | Q4_K_M | 126.50 ± 0.15 t/s | 139.47 ± 0.25 t/s | **+10.3%** | 100% |
+| RWKV-6-World 3B | RWKV (linear attn) | 3.10B | Q4_K_M | 101.96 ± 0.68 t/s | 116.75 ± 0.08 t/s | **+14.5%** | 100% |
+| Qwen2-VL 2B | VLM (Qwen2+CLIP) | 1.54B | Q4_K_M | 226.31 ± 0.88 t/s | 265.60 ± 0.72 t/s | **+17.4%** | 100% |
+
+Falcon H1 is a distinct SSM-hybrid from Jamba (TII Mamba2+attention vs AI21 Jamba architecture).
+Mamba 2.8B: first pure SSM model — no attention at all. SSM scan/conv ops (`GGML_OP_SSM_SCAN`,
+`GGML_OP_SSM_CONV`) are completely separate from MUL_MAT, T-MAC only intercepts MLP linear layers.
+RWKV-6: first linear attention model. WKV kernel (`rwkv-wkv.cu`) untouched by T-MAC. Channel-mixing
+FFN layers are standard MUL_MAT → fully intercepted. **Bit-identical output** (T-MAC = stock at temp=0).
+Qwen2-VL: first VLM. Vision encoder runs F16/F32 (not quantized → T-MAC irrelevant). Cross-attention
+falls back gracefully. Text generation decoder fully accelerated. **Bit-identical text output**.
+Image description verified: both T-MAC and stock correctly describe test image content.
+
+**Q4_K_M pp512 verification (N=10 paired interleaved):**
+
+| Model | Stock (mean ± SD) | T-MAC (mean ± SD) | Speedup | p-value | 95% CI |
+|-------|-------------------:|-------------------:|--------:|--------:|--------|
+| Llama 3.2 1B | 15,367 ± 54 t/s | 15,426 ± 173 t/s | +0.4% | 0.30 (NS) | [-0.4%, +1.2%] |
+| Codestral 22B | 1,156 ± 6.3 t/s | 1,156 ± 5.6 t/s | -0.0% | 0.90 (NS) | [-0.1%, +0.1%] |
+| OLMoE-1B-7B | 8,552 ± 32 t/s | 8,559 ± 37 t/s | +0.1% | 0.49 (NS) | [-0.2%, +0.4%] |
+
+All pp512 results statistically non-significant — regression fully eliminated.
+
+Q4_0 run-to-run CV: 0.12%–0.34%. Q4_K_M tg128 CV: 0.12%–0.28%.
+All ± values are now 95% CIs (converted from SD). Q4_0: N=12
+llama-bench aggregate (t-dist df=11). Q4_K_M: N=10 paired interleaved (t-dist df=9).
+1B Q4_0 updated from previous baseline (was +10.3%) — improvement from `__restrict__`
+qualifiers. Other Q4_0 models (22B, 30B, OLMoE) still at previous baseline, may also
+show improvement if re-measured.
+
+**Note on interleaved vs sequential ordering:** tg128 numbers are slightly lower than
+previous sequential measurements (1B 20.3% vs 19.7%, 22B 14.1% vs 14.7%, OLMoE 14.8%
+vs 15.9%). Interleaved A-B-A-B eliminates thermal drift bias (sequential measurements
+inflate T-MAC by ~0.3pp due to GPU heating). Interleaved numbers are more accurate.
+
+**Q4_0 vs Q4_K_M gain gap:** Codestral 22B shows +3.9% (Q4_0) vs +14.1% (Q4_K_M). Two
+factors explain this: (1) Q4_K_M's sub-block parallelization maps better to Wave32 — 64
+sub-blocks per row at K=2048 vs Q4_0's 64 blocks, but Q4_K benefits from larger contiguous
+loads per super-block (144 bytes vs 18 bytes), improving cache line utilization. (2) Q4_K_M
+models have mixed Q4_K + Q6_K tensors; the Q6_K T-MAC kernel eliminates an additional
+24.9% of stock MMVQ calls that Q4_0 models (uniform type) never had. The Q4_0 22B gain is
+genuine but lower because T-MAC's architectural advantages (fused SwiGLU, Q8_1 skip) are
+partially offset by Q4_0's simpler decode path being already well-optimized in stock dp4a.
+
+**Latency Percentiles (Q4_K_M, tg128, N=12 paired):**
+
+| Model | T-MAC p50 (ms/tok) | Stock p50 (ms/tok) | p50 gain | T-MAC p99 | Stock p99 | p99 gain |
+|-------|-------------------|-------------------|----------|-----------|-----------|----------|
+| 1B Q4_K_M | 2.210 | 2.648 | +16.5% | 2.224 | 2.659 | +16.4% |
+| 22B Q4_K_M | 21.918 | 25.116 | +12.7% | 21.949 | 25.243 | +13.1% |
+| OLMoE Q4_K_M | 2.622 | 3.042 | +13.8% | 2.640 | 3.057 | +13.6% |
+
+p50/p99 spread <1.3% — T-MAC introduces no tail latency.
+
+MoE gain breakdown: +2.8% attention + ~2.2% MoE expert dispatch + ~2.4% Q8_0/Q5_1 coverage + MoE correctness fix.
+
+**Note:** Devstral 24B omitted from statistical baseline (structurally identical to Codestral 22B, same architecture, similar gain).
+
+---
+
+## Multi-GPU Results
+
+### Row-Split (dual 7900 XTX, Q4_0)
+
+| Model | Type | Stock row-split | T-MAC row-split | Speedup | N |
+|-------|------|----------------:|----------------:|--------:|--:|
+| Llama 70B | Dense | 20.83 ± 0.07 t/s | 22.19 ± 0.11 t/s | **+6.5%** | 12 |
+| Codestral 22B | Dense | 39.84 ± 0.13 t/s | 45.50 ± 0.20 t/s | **+14.2%** | 10 |
+| Nemotron 30B | MoE | 113.62 t/s | 120.17 t/s | **+5.8%** | 1 |
+
+**Note (2026-02-23):** 70B Q4_0 row-split re-measured with N=12 (was N=1: 22.62→22.19 T-MAC,
+20.80→20.83 Stock). Speedup revised from +8.8% to +6.5%.
+
+### CPU-Offload (dual 7900 XTX, GPT-OSS 120B Q4_K_M, 58.5 GiB, MoE 128exp/4active)
+
+| Config | Split | ngl | CPU Layers | Stock (t/s) | T-MAC (t/s) | T-MAC Speedup | N |
+|--------|-------|:---:|:----------:|------------:|------------:|--------------:|:-:|
+| Dual GPU | Layer | 28 | 8 | 40.02 ± 0.07 | **40.53 ± 0.07** | **+1.3%** | 5 |
+| Dual GPU | Row | 25 | 11 | 30.56 ± 0.04 | 31.22 ± 0.07 | +2.2% | 5 |
+
+VRAM: GPU0=22.9GB, GPU1=21.9GB, CPU/RAM=15.1GB. Coherence: PASS (complex question, 39.54 t/s).
+**CORRECTION:** GPT-OSS 120B is **MoE** (128 experts, 4 active, ~5.1B active params),
+NOT Dense. The original "Thick Layer" hypothesis was wrong — 40 t/s comes from MoE sparsity.
+T-MAC +1.3% is NOT Amdahl dilution but ne0=2880 rejection: `2880 % 256 = 64`, so `can_dispatch`
+rejects ALL per-layer tensors. T-MAC fires only on output.weight + Q8_1 skip savings.
+Layer-split beating row-split (40.53 vs 31.22) is a MoE property, not a Dense architecture rule.
+5.1B active params ≈ 10-15B Dense equivalent for reasoning.
+
+### IQ Quantization (dual 7900 XTX, N=12)
+
+| Model | Quant | Split | Stock (t/s) | T-MAC (t/s) | T-MAC Speedup | vs Single T-MAC |
+|-------|-------|-------|------------:|------------:|--------------:|----------------:|
+| Llama 70B | IQ2_XXS | single | 13.88 ± 0.01 | 17.00 ± 0.03 | **+22.5%** | baseline |
+| Llama 70B | IQ2_XXS | row | 19.26 ± 0.07 | **22.90 ± 0.12** | **+18.9%** | **+34.7%** |
+| Llama 70B | IQ2_XXS | layer | 13.18 ± 0.02 | 16.27 ± 0.04 | +23.4% | -4.3% |
+| OLMoE | IQ3_S | single | 314.99 ± 3.56 | 409.44 ± 5.54 | **+30.0%** | baseline |
+| OLMoE | IQ3_S | row | 190.82 ± 0.96 | 228.01 ± 5.57 | +19.5% | **-44.3%** |
+| OLMoE | IQ3_S | layer | 301.77 ± 5.99 | 384.99 ± 7.64 | +27.6% | -6.0% |
+| Mixtral 8x7B | IQ3_S | layer | 55.47 ± 0.06 | 80.67 ± 0.09 | **+45.4%** | N/A (requires dual) |
+
+### Llama 4 Scout (dual 7900 XTX, N=10 paired interleaved)
+
+| Model | Quant | Stock (mean ± 95% CI) | T-MAC (mean ± 95% CI) | Speedup [95% CI] | p-value |
+|-------|-------|----------------------:|----------------------:|------------------:|--------:|
+| Llama 4 Scout 17Bx16E | IQ2_XXS-UD | 39.84 ± 0.07 t/s | 44.62 ± 0.12 t/s | **+12.0%** [+11.6%, +12.4%] | <0.0001 |
+
+t-stat=72.38 (df=9). CV: Stock 0.24%, T-MAC 0.38%. 439 alias copies/token (pool-copy).
+Individual speedups: +12.7%, +11.7%, +11.7%, +11.2%, +11.7%, +11.3%, +12.5%, +12.4%, +12.0%, +12.7%.
+Llama 4 Scout is ISWA architecture (48 layers, 16 experts, top-1 routing, chunked SWA + full attention).
+Active Ratio: 100% generation, 80.6% overall (141 prefill-only MoE misses at ne2=2).
+First model where T-MAC's aliasing fix enables fused SwiGLU on all layers.
+
+### Qwen3.5-122B-A10B (dual 7900 XTX, v1.5, N=12 llama-bench aggregate, non-interleaved)
+
+| Model | Quant | Stock (mean ± 95% CI) | T-MAC (mean ± 95% CI) | Speedup |
+|-------|-------|----------------------:|----------------------:|--------:|
+| Qwen3.5-122B-A10B | IQ2_XXS (mixed, 111× IQ1_M) | 41.05 ± 0.04 t/s | 44.09 ± 0.09 t/s | **+7.4%** |
+
+Bartowski importance-matrix quantization assigns 111 tensors to IQ1_M (1.75 bpw, ne0=3072/1024).
+Before IQ1_M kernel: Active Ratio 58%, Compute Coverage 88.4%. After: 100% / 99.6%.
+First model to exercise IQ1_M kernel. Validates scaleless super-block design (no `d` field).
+
+**HSA_ENABLE_SDMA=0 test (N=5):** 70B IQ2_XXS row T-MAC: 22.41 (vs 22.90 with SDMA) = -2.1%.
+SDMA is working correctly on this board; CPU-copy fallback is slower.
+
+**Multi-GPU IQ scaling paradox (Key finding):** IQ2_XXS halves model size (18GB
+vs 38GB Q4_0), but row-split dual only gains +3.2% over Q4_0 dual (22.90 vs 22.19 t/s).
+The `hipStreamWaitEvent` sync overhead (~200 events/token × 5-15μs = 1-3ms) is a fixed
+cost independent of data volume. As IQ reduces compute time per layer, sync becomes a
+proportionally larger fraction of total time (Amdahl's Law). **Result: faster kernels =
+worse multi-GPU scaling efficiency.** Actual result: 22.90 t/s.
+
+### Multi-GPU Rules (updated 2026-02-23)
+
+1. **Dense >40GB:** Row-split. Proven: 70B Q4_0 = 22.19 t/s, 70B IQ2_XXS = 22.90 t/s.
+2. **Dense models that fit on 1 GPU:** Single GPU always wins (22B paradox confirmed: -7.4%).
+3. **MoE:** Single GPU always wins. Row-split catastrophic (-44% OLMoE IQ3_S).
+   Exception: Llama 4 Scout (35GB) requires dual GPU — +12.0% with aliasing fix.
+4. **Layer-split for Dense:** Never tested successfully — 70B IQ2_XXS layer = -4.3% vs single.
+5. **HSA_ENABLE_SDMA=0:** Not helpful on 7900 XTX (tested, -2.1%).
+6. **CPU-Offloading:** Useful when VRAM tight. DDR5-7200 + 9950X3D capable co-processor.
+**NOTE:** The "Thick/Thin Layer" rules were based on GPT-OSS 120B which is MoE, not Dense.
+No Dense >70B model has been tested on dual-GPU. Layer-split advantage for GPT-OSS is a MoE
+property. The "Thick Layer Hypothesis" is invalidated.
+
+---
+
+## SwiGLU MoE Validation (2026-02-19, re-verified 2026-02-21)
+
+Fused SwiGLU+MoE path validated on real SwiGLU-based MoE models (previously only tested
+with Nemotron 30B which uses plain MLP experts). Re-verified after src1 stride fix.
+
+| Model | Type | Params | Expert Layout | Stock | T-MAC | Speedup |
+|-------|------|--------|---------------|------:|----------:|--------:|
+| OLMoE-1B-7B | MoE | 6.92B | 64 experts / 8 active | 365.10 t/s | 403.07 t/s | **+10.4%** |
+| Qwen1.5-MoE-A2.7B | MoE | 14.32B | 60 experts / 4 active + shared | 192.18 t/s | 202.82 t/s | **+5.5%** |
+
+OLMoE's higher gain (+10.4%) reflects higher MoE ratio and pure SwiGLU experts (no shared
+experts competing for bandwidth). Both models fire all four T-MAC paths: fused SwiGLU+MoE,
+unfused MoE dispatch, fused SwiGLU (shared experts, Qwen only), and direct dequant.
+
+**OLMoE segfault (resolved):** OLMoE previously segfaulted on complex prompts.
+Initially assumed to be a pre-existing unrelated issue, but investigation confirmed it was the
+same src1 stride bug. OLMoE has 8 active experts — expert slot 7 read `src1 + 7*K` far
+past the buffer boundary. Nemotron (6 active, larger K) produced only corrupt data;
+OLMoE's smaller intermediate dimension caused the offset to land in unmapped memory.
+**One bug, two symptoms — never assume "pre-existing unrelated" without proof.**
