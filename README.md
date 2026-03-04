@@ -1,6 +1,7 @@
 # kuzco.cpp — the fast speaking Llama!
 
-> llama.cpp fork with T-MAC kernels for AMD RDNA3 — **+10-36% token generation throughput.**
+> llama.cpp fork with T-MAC kernels for AMD RDNA3 — **+13-20% faster token generation**
+> on popular quantizations, **up to +37% on IQ types.**
 
 <p align="center">
   <img src="docs/kuzco-logo.png" alt="kuzco.cpp logo" width="400">
@@ -19,27 +20,62 @@ It replaces the inner math kernel that runs during text generation with a custom
 version optimized for AMD's GPU architecture. Everything else stays the same:
 same models, same output quality, same commands.
 
-- **+10-36% faster token generation** depending on model and quantization
+- **+13-20% faster** on Q4_K_M (most popular), up to +37% on IQ quantizations
 - **Zero configuration** — auto-detects your GPU and activates automatically
 - **Bit-identical output** — same quality as stock llama.cpp (perplexity delta = 0.000)
 - **Safe fallback** — non-AMD hardware uses the stock kernel, nothing changes
-- **26 models tested** across 13 architecture families, 17 quantization types
+- **26 models tested** (15 statistically benchmarked) across 13 architecture families, 17 quantization types
 
-## Why a fork?
+## Why does this exist?
 
-kuzco.cpp is developed with AI assistance (Claude, Gemini). llama.cpp's contribution policy does not accept AI-generated code. We respect that boundary — hence an independent fork with monthly rebase against upstream.
+I bought two RX 7900 XTX cards for local LLM inference and quickly noticed that
+AMD gets far less optimization attention than NVIDIA in the llama.cpp ecosystem.
+The CUDA backend has years of hand-tuned kernels. The HIP/ROCm backend works, but
+the quantized GEMV path — the single hottest loop during text generation — was
+essentially a recompiled CUDA kernel with no AMD-specific tuning. Dual-GPU setups
+were even more neglected.
 
-This is a specialization for RDNA3 token generation, not a replacement for llama.cpp.
+I wanted to know: how much performance is being left on the table? Not as a
+theoretical exercise, but as an actual measured answer with real models and
+real workloads.
+
+Turns out: 10-37%, depending on model and quantization. That's not a rounding
+error. That's hundreds of tokens per second on everyday models.
+
+This project started from curiosity and the simple joy of making something faster.
+I'm not a GPU kernel engineer by trade — I'm a developer who likes to understand
+how things work at the hardware level. The fact that I used AI tools (Claude and
+Gemini) to build this is not something I'm hiding; it's part of the story. The
+AI helped me explore RDNA3's memory hierarchy, prototype kernel variants, and
+run systematic experiments faster than I could alone. Every result is backed by
+reproducible benchmarks with raw data — you don't have to trust me or the AI,
+you can [verify it yourself](#reproducing-results).
+
+kuzco.cpp is not a replacement for llama.cpp. It's a specialization that targets
+one specific bottleneck on one specific GPU family. Everything else — the model
+loading, the sampling, the chat interface — that's all llama.cpp, and it's
+excellent.
+
+## Why a fork (and not a PR)?
+
+llama.cpp's contribution policy does not accept AI-generated code. I respect
+that boundary. Rather than obscuring how this was built, I chose transparency:
+an independent fork with monthly rebase against upstream.
 
 ## Acknowledgments
 
-Built on [llama.cpp](https://github.com/ggml-org/llama.cpp) by **Georgi Gerganov** and [contributors](https://github.com/ggml-org/llama.cpp/graphs/contributors). The [ggml](https://github.com/ggml-org/ggml) tensor library makes all of this possible. MIT license, same as upstream.
+Built on [llama.cpp](https://github.com/ggml-org/llama.cpp) by **Georgi Gerganov**
+and [contributors](https://github.com/ggml-org/llama.cpp/graphs/contributors).
+The [ggml](https://github.com/ggml-org/ggml) tensor library makes all of this
+possible. MIT license, same as upstream.
 
 ## Performance
 
 > **Reading these tables:** "t/s" = tokens per second (higher = faster). Speedup is
-> relative to stock llama.cpp on the same hardware. All benchmarks run on a single
-> AMD RX 7900 XTX with N=10 paired interleaved runs and 95% confidence intervals.
+> relative to stock llama.cpp on the same hardware. All Q4_K_M benchmarks: single
+> AMD RX 7900 XTX, N=10 paired interleaved runs, 95% confidence intervals, tg128
+> (128-token generation). For per-entry sample sizes on other results, see
+> [benchmarks.md](docs/tmac/benchmarks.md).
 
 ### Q4_K_M — the most popular quantization
 
@@ -65,12 +101,12 @@ VRAM, at the cost of lower output quality.
 
 | Model | Quant | bpw | VRAM savings vs Q4_K | Speedup |
 |-------|-------|----:|---------------------:|--------:|
-| Llama 1B | IQ3_XXS | 3.06 | ~36% less | **+36.6%** |
+| Llama 1B | IQ3_XXS | 3.06 | ~36% less | **+36.9%** |
 | Llama 1B | IQ3_S | 3.44 | ~28% less | **+34.4%** |
 | OLMoE-1B-7B | IQ3_S | 3.44 | ~28% less | **+29.1%** |
 | Llama 70B | IQ2_XXS | 2.06 | ~57% less | **+25.8%** |
-| Llama 1B | IQ2_XXS | 2.06 | ~57% less | **+24.6%** |
-| Llama 1B | IQ2_XS | 2.31 | ~52% less | **+17.4%** |
+| Llama 1B | IQ2_XXS | 2.06 | ~57% less | **+24.4%** |
+| Llama 1B | IQ2_XS | 2.31 | ~52% less | **+17.0%** |
 | Llama 1B | IQ1_M | 1.75 | ~64% less | **+11.9%** |
 
 **Why are IQ speedups higher?** Stock llama.cpp uses a generic lookup-table approach
@@ -89,6 +125,10 @@ Two GPUs allow running models that don't fit on a single card (e.g. Llama 70B at
 | Llama 4 Scout | IQ2_XXS-UD | **+12.0%** |
 | Llama 70B | Q4_0 | **+6.5%** |
 
+> **Note:** Multi-GPU speedups are higher because fixed synchronization overhead
+> penalizes the stock baseline disproportionately. Single-GPU numbers are the
+> fairer comparison for most users.
+
 ### Tested model architectures
 
 T-MAC works with all major LLM architectures — not just standard transformer models:
@@ -101,7 +141,8 @@ T-MAC works with all major LLM architectures — not just standard transformer m
 | Linear attention | RWKV-6 | Validated |
 | Vision-Language (VLM) | Qwen2-VL | Validated |
 
-26 models across 13 architecture families. Full benchmark data with confidence
+15 models statistically benchmarked (N≥5, paired t-test), 26 models tested
+across 13 architecture families. Full benchmark data with confidence
 intervals and p-values: [docs/tmac/benchmarks.md](docs/tmac/benchmarks.md)
 
 ## Quick Start
@@ -182,6 +223,26 @@ layers.
 The result: fewer memory reads, fewer instructions, same output. Technical
 deep-dive with architecture diagrams: [TMAC.md](TMAC.md)
 
+**Memory usage:** T-MAC uses zero additional VRAM for weight storage. Lookup
+tables are built at kernel launch time in fast on-chip memory (LDS), not in
+GPU VRAM.
+
+## Known Limitations
+
+- **RDNA3 only:** Validated on RX 7900 XTX (gfx1100). Expected to work on
+  7900 XT, 7800 XT, W7900 (same ISA). Not validated on RDNA4 or NVIDIA.
+- **Token generation only:** T-MAC accelerates batch=1 decode (tg). Prefill
+  (prompt processing) uses the stock kernel automatically — no slowdown.
+- **Alignment constraints:** Some quantization types require hidden dimensions
+  divisible by 256. Models with non-standard dimensions partially fall back
+  to stock. Most popular models are unaffected.
+- **Single hardware tested:** All benchmarks on RX 7900 XTX. Performance
+  may vary on other RDNA3 SKUs.
+
+T-MAC is complementary to other AMD optimizations (Flash Attention for
+prefill, composable_kernel for batched inference). It targets specifically
+the single-token generation bottleneck.
+
 ## Relationship to Upstream
 
 - **Independent fork** with monthly rebase against [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp) master
@@ -190,12 +251,29 @@ deep-dive with architecture diagrams: [TMAC.md](TMAC.md)
 - **All upstream functionality is preserved** — T-MAC is purely additive
 - Non-RDNA3 hardware is completely unaffected
 
+## Reproducing Results
+
+Don't take our word for it — verify on your own hardware:
+
+```bash
+# Download any supported model
+huggingface-cli download bartowski/Llama-3.2-1B-Instruct-GGUF \
+  --include "Llama-3.2-1B-Instruct-Q4_K_M.gguf" --local-dir models/
+
+# Run paired benchmark (N=5, ~10 minutes)
+scripts/reproduce-benchmarks.sh models/Llama-3.2-1B-Instruct-Q4_K_M.gguf
+```
+
+Outputs a CSV with raw per-run data and a summary with speedup + 95% confidence interval.
+Raw data from our measurements: [`data/benchmarks/`](data/benchmarks/)
+
 ## Documentation
 
 | Document | Contents |
 |----------|----------|
 | [TMAC.md](TMAC.md) | Technical architecture, kernel design, dispatch flow |
 | [docs/tmac/benchmarks.md](docs/tmac/benchmarks.md) | Full benchmark suite with CIs and p-values |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | How to contribute, report bugs, testing requirements |
 | [CHANGELOG.md](CHANGELOG.md) | Version history |
 
 ## License

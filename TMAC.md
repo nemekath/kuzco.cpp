@@ -1,6 +1,7 @@
 # T-MAC: Custom GEMV Kernels for AMD RDNA3
 
-**+10-36% token generation throughput** on quantized LLMs with AMD RX 7900 XTX
+**+13-20% token generation throughput** on popular quantizations (Q4_K_M),
+**up to +37% on IQ types**, with AMD RX 7900 XTX
 (up to +45% on dual-GPU MoE configurations).
 
 T-MAC is a set of custom GEMV (General Matrix-Vector Multiply) kernels optimized for
@@ -39,12 +40,12 @@ All measurements: N=10 paired interleaved A-B, 95% confidence intervals, single 
 
 | Model | Quant | Stock | T-MAC | Speedup |
 |-------|-------|------:|------:|--------:|
-| Llama 3.2 1B | IQ3_XXS | — | — | **+36.6%** |
+| Llama 3.2 1B | IQ3_XXS | 361 t/s | 495 t/s | **+36.9%** |
 | Llama 3.2 1B | IQ3_S | 367 t/s | 494 t/s | **+34.4%** |
 | OLMoE-1B-7B (MoE) | IQ3_S | 313 t/s | 404 t/s | **+29.1%** |
 | Llama 3.3 70B | IQ2_XXS | 13.9 t/s | 17.5 t/s | **+25.8%** |
-| Llama 3.2 1B | IQ2_XXS | — | — | **+24.6%** |
-| Llama 3.2 1B | IQ2_XS | — | — | **+17.4%** |
+| Llama 3.2 1B | IQ2_XXS | 372 t/s | 463 t/s | **+24.4%** |
+| Llama 3.2 1B | IQ2_XS | 369 t/s | 432 t/s | **+17.0%** |
 | Llama 3.2 1B | IQ1_M | 452 t/s | 505 t/s | **+11.9%** |
 | Llama 3.2 1B | IQ4_XS | 424 t/s | 471 t/s | **+11.1%** |
 | Mixtral 8x7B (dual GPU) | IQ3_S | 55.5 t/s | 80.7 t/s | **+45.4%** |
@@ -62,7 +63,7 @@ Mixtral measured on dual 7900 XTX (layer split); all others on single GPU.
 | Q4_0 | +4-15% | Legacy format |
 | Q5_0 | +15% | 5-bit legacy, PPL validated |
 | Q6_K | +5-6% | Higher quality, larger blocks |
-| IQ3_XXS | +29-37% | Highest single-GPU Dense gain |
+| IQ3_XXS | +29-37% | Highest single-GPU Dense gain (1B: 361→495 t/s) |
 | IQ3_S | +29-34% | +45.4% on dual GPU (Mixtral 8x7B) |
 | IQ2_XXS | +24-26% | Extreme compression, 70B on single GPU |
 | IQ2_XS | +17% | 2-bit with extra scales |
@@ -164,6 +165,18 @@ The kernels intercept at 6 dispatch sites in `ggml-cuda.cu` and `mmvq.cu`. Prefi
 | `ggml/src/ggml-cuda/ggml-cuda.cu` | 5 dispatch sites (unfused, split, MoE, fused-split, bias-fused) |
 | `ggml/src/ggml-cuda/mmvq.cu` | 1 dispatch site (fused SwiGLU non-split + MoE) |
 | `scripts/tmac-regression.sh` | Paired A-B regression test |
+
+## Where T-MAC Fits
+
+T-MAC targets a specific bottleneck: single-token GEMV during text generation.
+It is complementary to:
+
+- **Flash Attention (ROCm):** Accelerates prefill (prompt processing). T-MAC
+  does not touch attention kernels.
+- **composable_kernel / hipBLASLt:** Handle batched GEMM (batch>1). T-MAC
+  only fires at batch=1.
+- **ExLlamaV2 / vLLM:** Full inference frameworks. kuzco.cpp is a llama.cpp
+  fork, not a framework — it extends llama.cpp, not replaces it.
 
 ## Fork Maintenance
 

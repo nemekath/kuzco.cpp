@@ -83,20 +83,20 @@ constraint confounds. Compare Nemotron Q4_0 = +7.9% at 18 GB (comfortable 6 GB h
 
 | Model | Type | Params | Quant | Stock (mean ± 95% CI) | T-MAC (mean ± 95% CI) | Speedup [95% CI] | p-value |
 |-------|------|--------|-------|----------------------:|----------------------:|------------------:|--------:|
-| Llama 3.2 1B | Dense | 1.24B | IQ3_XXS | — | — | **+36.6%** | <1e-6 |
+| Llama 3.2 1B | Dense | 1.24B | IQ3_XXS | 361.4 ± 0.6 t/s | 494.5 ± 0.7 t/s | **+36.9%** [+36.7%, +37.1%] | <1e-15 |
 | Llama 3.2 1B | Dense | 1.24B | IQ3_S | 367.4 ± 0.5 t/s | 493.8 ± 1.1 t/s | **+34.4%** [+34.0%, +34.8%] | <1e-15 |
 | OLMoE-1B-7B | MoE | 6.92B | IQ3_S | 313.1 ± 0.8 t/s | 404.3 ± 1.6 t/s | **+29.1%** [+28.7%, +29.6%] | <1e-15 |
 | OLMoE-1B-7B | MoE | 6.92B | IQ3_XXS | 319.0 ± 2.3 t/s | 409.0 ± 1.6 t/s | **+28.2%** [+27.6%, +28.8%] | <1e-6 |
 | Llama 3.3 70B | Dense | 70.55B | IQ2_XXS | 13.93 ± 0.02 t/s | 17.52 ± 0.08 t/s | **+25.8%** | <1e-6 |
-| Llama 3.2 1B | Dense | 1.24B | IQ2_XXS | — | — | **+24.6%** | <1e-6 |
-| Llama 3.2 1B | Dense | 1.24B | IQ2_XS | — | — | **+17.4%** | <1e-6 |
+| Llama 3.2 1B | Dense | 1.24B | IQ2_XXS | 372.1 ± 1.1 t/s | 462.8 ± 0.8 t/s | **+24.4%** [+24.0%, +24.8%] | <1e-15 |
+| Llama 3.2 1B | Dense | 1.24B | IQ2_XS | 369.3 ± 0.8 t/s | 432.1 ± 1.2 t/s | **+17.0%** [+16.6%, +17.4%] | <1e-15 |
 | Llama 3.2 1B | Dense | 1.24B | IQ4_XS | 424.2 ± 1.0 t/s | 471.4 ± 1.0 t/s | **+11.1%** [+10.8%, +11.4%] | <1e-15 |
 | Mixtral 8x7B | MoE | 46.70B | IQ3_S | 55.47 ± 0.06 t/s | 80.67 ± 0.09 t/s | **+45.4%** [+45.3%, +45.5%] | <1e-15 |
 | Llama 3.2 1B | Dense | 1.24B | IQ1_M | 451.5 ± 1.2 t/s | 505.3 ± 1.2 t/s | **+11.9%** [+11.7%, +12.2%] | <1e-15 |
 
-**Sign LUT elimination (2026-02-27):** IQ3_XXS, IQ2_XXS, IQ2_XS updated with sign LUT elimination results.
-IQ3_XXS 1B (+36.6%) is now T-MAC's highest single-GPU Dense speedup (was IQ3_S +34.4%).
-IQ2_XXS 1B improved from +22.3% to +24.6% after sign LUT elimination.
+**Sign LUT elimination (2026-02-27, re-measured 2026-03-02):** IQ3_XXS, IQ2_XXS, IQ2_XS updated with
+sign LUT elimination results and re-measured with full absolute t/s values (N=10 paired interleaved).
+IQ3_XXS 1B (+36.9%) is T-MAC's highest single-GPU Dense speedup. IQ2_XXS 1B +24.4%. IQ2_XS 1B +17.0%.
 OLMoE IQ3_XXS (+28.2%) validates sign LUT elimination on MoE path (64 experts / 8 active). Requantized model
 (Q4_K_M → IQ3_XXS with imatrix + --allow-requantize) — kernel validation, not community-distributed.
 
@@ -165,11 +165,12 @@ GPT-OSS 120B (58.5 GiB, CPU offload): +2.9% (N=3, Amdahl bottleneck: PCIe + CPU 
 
 **DeepSeek-R1:**
 
-| Model | Type | Params | Quant | Stock (N=3) | T-MAC (N=3) | Speedup |
-|-------|------|--------|-------|------------:|------------:|--------:|
-| DeepSeek-R1-Distill-Llama-8B | Dense | 8.03B | Q4_K_M | 100.58 ± 0.06 t/s | 120.38 ± 0.28 t/s | **+19.7%** |
+| Model | Type | Params | Quant | Stock (N=10) | T-MAC (N=10) | Speedup [95% CI] | p-value |
+|-------|------|--------|-------|-------------:|-------------:|------------------:|--------:|
+| DeepSeek-R1-Distill-Llama-8B | Dense | 8.03B | Q4_K_M | 100.26 ± 0.30 t/s | 118.67 ± 0.34 t/s | **+18.4%** [18.0%, 18.7%] | <0.0001 |
 
 Active Ratio: 100% (1775/1775 ops). Compute Coverage: 100%. Llama architecture → validates seamlessly.
+N=10 paired interleaved, tg128. Updated from N=3 (2026-03-02).
 
 **Model zoo validation (single-run smoke tests, 2026-02-25):**
 
@@ -189,7 +190,7 @@ Llama 4 Scout: aliasing fix restored 100% generation Active Ratio (was 86.4% bef
 MoE models consistently show 95-99% Compute Coverage — gap from fused-path guard conditions.
 Qwen3.5-122B-A10B: bartowski IQ2_XXS mixed quant with 111 IQ1_M tensors. Before IQ1_M kernel: 58% Active Ratio.
 After IQ1_M kernel (v1.5): 100% Active Ratio, 99.6% Compute Coverage (remaining 0.4% = 1 Q2_K tensor).
-Total validated: **26 models across 13 architecture families** (Dense, MoE, MLA+MoE, SSM-Hybrid, SWA, MXFP4-MoE, MoE+CPU-offload, ISWA-MoE, SSM-MoE, SSM-Hybrid-Mamba2, Pure-SSM, RWKV, VLM).
+Total: **15 models statistically benchmarked** (N≥5, paired t-test with CIs), **26 models tested** across **13 architecture families** (Dense, MoE, MLA+MoE, SSM-Hybrid, SWA, MXFP4-MoE, MoE+CPU-offload, ISWA-MoE, SSM-MoE, SSM-Hybrid-Mamba2, Pure-SSM, RWKV, VLM).
 
 **Architecture compatibility expansion (2026-02-27, N=5 llama-bench, ± = SD):**
 
@@ -253,6 +254,40 @@ p50/p99 spread <1.3% — T-MAC introduces no tail latency.
 MoE gain breakdown: +2.8% attention + ~2.2% MoE expert dispatch + ~2.4% Q8_0/Q5_1 coverage + MoE correctness fix.
 
 **Note:** Devstral 24B omitted from statistical baseline (structurally identical to Codestral 22B, same architecture, similar gain).
+
+---
+
+## Sequence Length Sensitivity
+
+Speedup measured at different generation lengths (Q4_K_M, N=5 paired interleaved, single 7900 XTX, 2026-03-02):
+
+| Model | Params | tg128 | tg512 | tg2048 | Trend |
+|-------|--------|------:|------:|-------:|-------|
+| Llama 3.2 1B | 1.24B | **+20.1%** | **+20.5%** | **+18.2%** | Slight decrease at 2048 |
+| Codestral 22B | 22.25B | **+15.3%** | **+15.2%** | **+13.3%** | Slight decrease at 2048 |
+| Qwen3.5 27B | 27B | **+9.8%** | **+9.5%** | — | Stable (tg2048 not measured) |
+
+Raw throughput (t/s):
+
+| Model | Metric | Stock (mean ± SD) | T-MAC (mean ± SD) |
+|-------|--------|-------------------:|-------------------:|
+| 1B | tg128 | 372.4 ± 0.5 | 447.2 ± 1.0 |
+| 1B | tg512 | 371.9 ± 0.5 | 448.3 ± 1.5 |
+| 1B | tg2048 | 353.4 ± 0.3 | 417.8 ± 1.6 |
+| 22B | tg128 | 40.0 ± 0.1 | 46.2 ± 0.1 |
+| 22B | tg512 | 39.2 ± 0.1 | 45.2 ± 0.1 |
+| 22B | tg2048 | 36.4 ± 0.1 | 41.3 ± 0.0 |
+| 27B | tg128 | 26.8 ± 0.0 | 29.4 ± 0.1 |
+| 27B | tg512 | 26.7 ± 0.1 | 29.3 ± 0.0 |
+
+T-MAC speedup holds across generation lengths. The ~2pp decrease at tg2048 is expected:
+longer KV-cache increases attention's share of total time (attention uses stock kernels),
+diluting T-MAC's GEMV contribution via Amdahl's Law. The effect is larger on 1B (attention
+is a bigger fraction of total compute on small models) than 22B (GEMV-dominated).
+
+Qwen3.5-27B shows lower gain (+9.8%) than similarly-sized Codestral 22B (+15.3%). This is
+likely a model-specific effect: Qwen3.5 uses GQA with fewer KV heads, shifting more time
+to attention. The gain is stable across tg128→tg512.
 
 ---
 
