@@ -71,16 +71,22 @@ possible. MIT license, same as upstream.
 
 ## Performance
 
-> **Reading these tables:** "t/s" = tokens per second (higher = faster). Speedup is
-> relative to stock llama.cpp on the same hardware. All Q4_K_M benchmarks: single
-> AMD RX 7900 XTX, N=10 paired interleaved runs, 95% confidence intervals, tg128
-> (128-token generation). For per-entry sample sizes on other results, see
-> [benchmarks.md](docs/tmac/benchmarks.md).
+<p align="center">
+  <img src="docs/tmac/chart-throughput-q4km.png" alt="T-MAC vs stock throughput comparison" width="800">
+</p>
+
+> All Q4_K_M benchmarks: single AMD RX 7900 XTX, N=10 paired interleaved runs,
+> 95% confidence intervals, tg128. Full data with p-values:
+> [benchmarks.md](docs/tmac/benchmarks.md)
 
 ### Q4_K_M — the most popular quantization
 
-Q4_K_M (~4.8 bits per weight) is the default choice for most users: good quality,
-good speed, reasonable VRAM usage.
+<p align="center">
+  <img src="docs/tmac/chart-q4km-speedup.png" alt="Q4_K_M speedup by model" width="700">
+</p>
+
+<details>
+<summary>Exact numbers (click to expand)</summary>
 
 | Model | Size | What it is | Stock | T-MAC | Speedup |
 |-------|-----:|------------|------:|------:|--------:|
@@ -89,6 +95,8 @@ good speed, reasonable VRAM usage.
 | OLMoE-1B-7B | 6.92B | Mixture-of-Experts | 325 t/s | 373 t/s | **+14.8%** |
 | GLM-4.7-Flash | ~16B | Mixture-of-Experts | 87.4 t/s | 100.7 t/s | **+15.2%** |
 | QwQ-32B | 32B | Reasoning model | 29.9 t/s | 33.9 t/s | **+13.5%** |
+
+</details>
 
 ### IQ types — fitting big models into less VRAM
 
@@ -99,6 +107,13 @@ quality. This lets you run models that wouldn't otherwise fit on your GPU.
 For reference: Q4_K_M uses ~4.8 bpw. IQ2_XXS uses ~2.1 bpw — less than half the
 VRAM, at the cost of lower output quality.
 
+<p align="center">
+  <img src="docs/tmac/chart-iq-speedup.png" alt="IQ types speedup" width="650">
+</p>
+
+<details>
+<summary>Exact numbers (click to expand)</summary>
+
 | Model | Quant | bpw | VRAM savings vs Q4_K | Speedup |
 |-------|-------|----:|---------------------:|--------:|
 | Llama 1B | IQ3_XXS | 3.06 | ~36% less | **+36.9%** |
@@ -108,6 +123,8 @@ VRAM, at the cost of lower output quality.
 | Llama 1B | IQ2_XXS | 2.06 | ~57% less | **+24.4%** |
 | Llama 1B | IQ2_XS | 2.31 | ~52% less | **+17.0%** |
 | Llama 1B | IQ1_M | 1.75 | ~64% less | **+11.9%** |
+
+</details>
 
 **Why are IQ speedups higher?** Stock llama.cpp uses a generic lookup-table approach
 for IQ types. T-MAC replaces this with an optimized implementation — the more
