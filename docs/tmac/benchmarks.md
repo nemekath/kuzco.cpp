@@ -40,6 +40,9 @@ batches. Fix: removed the override (4 lines). RDNA3 heuristics now apply correct
 Statistical benchmarks: single GPU (7900 XTX), `tg128`. Q4_K_M: N=10 paired interleaved.
 Q4_0: N=12 (llama-bench aggregate). Paired t-test, 95% CI via t-distribution. 2026-02-22.
 
+> *All generation (tg128) benchmarks measured at batch=1. T-MAC guards reject batch>1,
+> falling back to stock kernels. Results do not reflect batch inference performance.*
+
 **Q4_0 models (N=12 llama-bench aggregate, ± = 95% CI via t-distribution df=11):**
 
 | Model | Type | Params | Stock (mean ± 95% CI) | T-MAC (mean ± 95% CI) | Speedup [95% CI] | p-value |
@@ -62,7 +65,7 @@ Q4_0: N=12 (llama-bench aggregate). Paired t-test, 95% CI via t-distribution. 20
 
 GLM was -12.1% before nb_sub guard fix (ne0=512 → nb_sub=16, 50% warp utilization).
 
-**Additional validated models (N=10 paired interleaved, ± = 95% CI):**
+**Additional validated models (N=10 paired interleaved, ± = 95% CI, tg128 batch=1):**
 
 | Model | Type | Params | Quant | Stock (mean ± 95% CI) | T-MAC (mean ± 95% CI) | Speedup [95% CI] | p-value |
 |-------|------|--------|-------|----------------------:|----------------------:|------------------:|--------:|
@@ -79,7 +82,7 @@ Nemotron Q4_K_M +0.2% (NS): **VRAM-pressure artifact**, not a real result. Model
 24 GB VRAM (<1 GB headroom). CV=4.9% (16-40x normal). Cannot isolate quant variable — VRAM
 constraint confounds. Compare Nemotron Q4_0 = +7.9% at 18 GB (comfortable 6 GB headroom).
 
-**IQ Quantization types (N=10 paired interleaved, ± = 95% CI):**
+**IQ Quantization types (N=10 paired interleaved, ± = 95% CI, tg128 batch=1):**
 
 | Model | Type | Params | Quant | Stock (mean ± 95% CI) | T-MAC (mean ± 95% CI) | Speedup [95% CI] | p-value |
 |-------|------|--------|-------|----------------------:|----------------------:|------------------:|--------:|
