@@ -6,7 +6,7 @@
 >
 > All tests use `HIP_VISIBLE_DEVICES=0` (single GPU) unless noted. Dual GPU uses `0,1`.
 >
-> Last updated: 2026-03-05
+> Last updated: 2026-03-06
 
 ---
 
@@ -45,7 +45,10 @@ These models were benchmarked before the model zoo expansion. Results in `benchm
 | RWKV-6 3B | 3B | RWKV | Q4_K_M | 1.8 GB | OK | — | — | OK | **+14.5%** | N=5 |
 | Qwen2-VL 2B | 2B | VLM | Q4_K_M | 0.9 GB | OK | — | — | OK | **+17.4%** | N=5 |
 | Falcon H1 7B | 7B | SSM-Hybrid-Mamba2 | Q4_K_M | 4.3 GB | OK | — | — | OK | **+16.8%** | N=5 |
-| Qwen3.5-27B | 27B | Dense | Q4_K_M | 16 GB | OK | — | — | — | validated | — |
+| Qwen3.5-9B | 9B | Dense | Q4_K_M | 5.3 GB | OK | OK | OK | OK | **+11.1%** | N=10, PPL Δ=0.000 |
+| Qwen3.5-27B | 27B | Dense | Q4_K_M | 16 GB | OK | — | — | OK | **+9.5%** | N=5 |
+| Qwen3.5-27B | 27B | Dense | Q8_0 | 27 GB | OK | — | — | OK | **+6.3%** | N=5, dual GPU |
+| Qwen3.5-35B-A3B | 35B/3B | MoE | Q4_K_M | 20 GB | OK | — | — | OK | **+11.7%** | N=5, 97.5% coverage |
 | GPT-OSS 20B | 20B | MXFP4-MoE | MXFP4 | — | OK | — | — | OK | **+8.9%** | N=5 |
 | Llama 3.3 70B | 70B | Dense | IQ2_XXS | 19 GB | OK | — | — | OK | **+25.8%** | N=10, dual GPU |
 | Mixtral 8x7B | 47B/13B | MoE | IQ3_S | 18 GB | OK | — | — | OK | **+45.4%** | N=10, dual GPU |

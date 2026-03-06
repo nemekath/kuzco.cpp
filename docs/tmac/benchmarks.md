@@ -346,6 +346,21 @@ Llama 4 Scout is ISWA architecture (48 layers, 16 experts, top-1 routing, chunke
 Active Ratio: 100% generation, 80.6% overall (141 prefill-only MoE misses at ne2=2).
 First model where T-MAC's aliasing fix enables fused SwiGLU on all layers.
 
+### Qwen3.5 Family (v1.6, N=5 paired interleaved, 2026-03-06)
+
+| Model | Quant | Config | Stock (mean ± SD) | T-MAC (mean ± SD) | Speedup | p-value | 95% CI |
+|-------|-------|--------|-------------------:|-------------------:|--------:|--------:|--------|
+| Qwen3.5-9B | Q4_K_M | Single GPU | 69.81 ± 0.32 t/s | 77.57 ± 1.33 t/s | **+11.1%** | <0.001 | +10.1% to +12.2% |
+| Qwen3.5-27B | Q4_K_M | Single GPU | 26.64 ± 0.16 t/s | 29.18 ± 0.23 t/s | **+9.5%** | <0.001 | +8.0% to +11.1% |
+| Qwen3.5-35B-A3B | Q4_K_M | Single GPU (MoE) | 74.99 ± 0.03 t/s | 83.74 ± 0.09 t/s | **+11.7%** | <0.001 | +11.5% to +11.8% |
+| Qwen3.5-27B | Q8_0 | Dual GPU (row) | 20.02 ± 0.08 t/s | 21.27 ± 0.06 t/s | **+6.3%** | <0.001 | +5.9% to +6.6% |
+
+Notes:
+- Qwen3.5-9B: 100% Active Ratio, 100% Compute Coverage. N=10 (excl outlier N=9: +11.6%, CI +11.4-11.7%, CV 0.13%). PPL 8.7311, Δ=0.000.
+- Qwen3.5-27B Q4_K_M: GQA with fewer KV heads shifts more time to attention, explaining lower gain vs similarly-sized Codestral 22B (+14.1%).
+- Qwen3.5-35B-A3B: 85.2% Active Ratio (4624/5426 ops) but 97.5% Compute Coverage — small expert layers have ne0 alignment misses. Exceptionally tight variance (CV 0.04-0.11%).
+- Qwen3.5-27B Q8_0: Row-split across dual 7900 XTX (26.6 GB, exceeds single GPU). +6.3% matches 70B Q4_0 dual-GPU pattern (+6.5%) — PCIe sync overhead caps the benefit.
+
 ### Qwen3.5-122B-A10B (dual 7900 XTX, v1.5, N=12 llama-bench aggregate, non-interleaved)
 
 | Model | Quant | Stock (mean ± 95% CI) | T-MAC (mean ± 95% CI) | Speedup |
