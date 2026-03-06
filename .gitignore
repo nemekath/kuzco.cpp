@@ -163,3 +163,13 @@ a.out.*
 /docs/tmac/panel53-*.md
 /docs/tmac/panel54-*.md
 /docs/tmac/p17-hw-counters.md
+
+# Experimental benchmark scratch data
+/bench-panel-gaps-*.csv
+/model-zoo-*.csv
+
+# Prebuilt binary artifacts
+kuzco.cpp-v*/
+
+# GitHub preview mockups
+/github-*.png
