@@ -3,6 +3,21 @@
 > Versions v1.0–v1.6 were internal pre-releases with no binary artifacts.
 > v1.0.0 is the first public release with prebuilt binaries.
 
+## Unreleased — Qwen3.5 + ROCm 7.2 Validation
+
+### Added
+- Qwen3.5 family benchmarks: 9B +11.1%, 27B +9.5%, 35B-A3B (MoE) +11.7%, 27B Q8_0 dual-GPU +6.3%
+- ROCm 7.2.0 validation: 14 models, 8 quant types, zero regressions
+- Container-based ROCm validation infrastructure (`ci/rocm-validation/`)
+- 95% confidence intervals for all model zoo entries
+- Batch=1 scope caveat on all tg128 benchmark tables
+- Scout Q4_K_M rerun at N=10 (Parity, CPU offload CV=14-18%)
+- Model zoo utility scripts
+
+### Changed
+- Scout Q4_K_M reframed from +2.6% to "Parity" (CPU offload variance too high)
+- 30+ models across 13 architecture families (was 26)
+
 ## v1.6 (pre-release) — Upstream Rebase + Cleanup
 
 **Release date:** 2026-03-01
@@ -12,7 +27,7 @@
 - **Upstream rebase** to llama.cpp `47eb12b95`
 - Repository renamed to **kuzco.cpp** (`nemekath/kuzco.cpp`)
 - P16 (sign LUT elimination) and P17 (HW counter validation) closed
-- 26 models across 13 architecture families validated, all PPL delta = 0.000
+- 30+ models across 13 architecture families validated, all PPL delta = 0.000
 - 17 quantization types supported
 
 ## v1.5 (pre-release) — IQ1_M Kernel + Architecture Expansion

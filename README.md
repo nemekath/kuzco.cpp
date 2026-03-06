@@ -24,7 +24,7 @@ same models, same output quality, same commands.
 - **Zero configuration** — auto-detects your GPU and activates automatically
 - **Bit-identical output** — same quality as stock llama.cpp (perplexity delta = 0.000)
 - **Safe fallback** — non-AMD hardware uses the stock kernel, nothing changes
-- **26 models tested** (15 statistically benchmarked) across 13 architecture families, 17 quantization types
+- **30+ models tested** (19 statistically benchmarked) across 13 architecture families, 17 quantization types
 
 ## Why does this exist?
 
@@ -158,7 +158,7 @@ T-MAC works with all major LLM architectures — not just standard transformer m
 | Linear attention | RWKV-6 | Validated |
 | Vision-Language (VLM) | Qwen2-VL | Validated |
 
-15 models statistically benchmarked (N≥5, paired t-test), 26 models tested
+19 models statistically benchmarked (N≥5, paired t-test), 30+ models tested
 across 13 architecture families. Full benchmark data with confidence
 intervals and p-values: [docs/tmac/benchmarks.md](docs/tmac/benchmarks.md)
 
@@ -167,7 +167,7 @@ intervals and p-values: [docs/tmac/benchmarks.md](docs/tmac/benchmarks.md)
 ### Prerequisites
 
 - AMD RDNA3 GPU (RX 7900 series validated)
-- [ROCm](https://rocm.docs.amd.com/) (tested with 7.1; 6.x expected to work but untested)
+- [ROCm](https://rocm.docs.amd.com/) (validated with 7.1 and 7.2; 6.x expected to work but untested)
 - CMake 3.21+, C++17 compiler
 
 ### Build
