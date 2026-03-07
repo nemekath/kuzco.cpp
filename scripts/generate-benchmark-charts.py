@@ -159,11 +159,54 @@ def chart_absolute():
     style_ax(ax, 'Token Generation Throughput — Q4_K_M on RX 7900 XTX', ylabel='Tokens per second (tg128)')
     ax.legend(loc='upper right', framealpha=0.9, fontsize=9)
 
-    ax.text(0.98, 0.02, 'N=10 paired interleaved · higher is better',
-            transform=ax.transAxes, fontsize=7.5, color='#999', ha='right', va='bottom')
+    fig.tight_layout()
+    fig.text(0.98, 0.01, 'N=10 paired interleaved · higher is better',
+             fontsize=7.5, color='#999', ha='right', va='bottom')
+    path = os.path.join(OUT_DIR, 'chart-throughput-q4km.png')
+    fig.savefig(path, dpi=180, bbox_inches='tight', facecolor='white')
+    plt.close(fig)
+    print(f'  {path}')
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Chart 4: Multi-GPU absolute throughput (stock vs T-MAC, dual 7900 XTX)
+# ═══════════════════════════════════════════════════════════════════════
+def chart_multigpu():
+    models = [
+        'Mixtral 8x7B\nIQ3_S',
+        'Llama 4 Scout\nIQ2_XXS-UD',
+        '70B IQ2_XXS',
+        '70B Q4_0',
+    ]
+    stock = [55.47, 39.84, 19.26, 20.83]
+    tmac  = [80.67, 44.62, 22.90, 22.19]
+
+    fig, ax = plt.subplots(figsize=(9, 4.5))
+    fig.patch.set_facecolor('white')
+
+    x = np.arange(len(models))
+    w = 0.35
+
+    ax.bar(x - w/2, stock, w, label='stock llama.cpp', color=GRAY_BAR, edgecolor='white', linewidth=0.5)
+    ax.bar(x + w/2, tmac, w, label='kuzco.cpp (T-MAC)', color=AMD_RED, edgecolor='white', linewidth=0.5)
+
+    # Speedup labels above T-MAC bars
+    for i, (s, t) in enumerate(zip(stock, tmac)):
+        sp = 100 * (t - s) / s
+        ax.text(x[i] + w/2, t + 1.2, f'+{sp:.1f}%', ha='center', va='bottom',
+                fontsize=9, fontweight='bold', color=AMD_RED)
+
+    ax.set_xticks(x)
+    ax.set_xticklabels(models, fontsize=9)
+    ax.set_ylim(0, max(tmac) * 1.18)
+
+    style_ax(ax, 'Multi-GPU Throughput — Dual RX 7900 XTX', ylabel='Tokens per second (tg128)')
+    ax.legend(loc='upper right', framealpha=0.9, fontsize=9)
 
     fig.tight_layout()
-    path = os.path.join(OUT_DIR, 'chart-throughput-q4km.png')
+    fig.text(0.98, 0.01, 'N≥10 paired · dual 7900 XTX · higher is better',
+             fontsize=7.5, color='#999', ha='right', va='bottom')
+    path = os.path.join(OUT_DIR, 'chart-multigpu-throughput.png')
     fig.savefig(path, dpi=180, bbox_inches='tight', facecolor='white')
     plt.close(fig)
     print(f'  {path}')
@@ -175,4 +218,5 @@ if __name__ == '__main__':
     chart_q4km()
     chart_iq()
     chart_absolute()
+    chart_multigpu()
     print('Done.')

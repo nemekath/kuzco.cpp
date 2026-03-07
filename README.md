@@ -57,8 +57,7 @@ same models, same output quality, same commands.
 
 </details>
 
-<details>
-<summary>IQ types — fitting big models into less VRAM</summary>
+### IQ types — fitting big models into less VRAM
 
 IQ ("importance quantization") compresses models more aggressively, using fewer
 **bits per weight (bpw)**. Lower bpw = smaller file = less VRAM needed, but lower
@@ -71,6 +70,9 @@ VRAM, at the cost of lower output quality.
   <img src="docs/tmac/chart-iq-speedup.png" alt="IQ types speedup" width="650">
 </p>
 
+<details>
+<summary>Exact numbers (click to expand)</summary>
+
 | Model | Quant | bpw | VRAM savings vs Q4_K | Speedup |
 |-------|-------|----:|---------------------:|--------:|
 | Llama 1B | IQ3_XXS | 3.06 | ~36% less | **+36.9%** |
@@ -81,30 +83,37 @@ VRAM, at the cost of lower output quality.
 | Llama 1B | IQ2_XS | 2.31 | ~52% less | **+17.0%** |
 | Llama 1B | IQ1_M | 1.75 | ~64% less | **+11.9%** |
 
+</details>
+
 **Why are IQ speedups higher?** Stock llama.cpp uses a generic lookup-table approach
 for IQ types. T-MAC replaces this with an optimized implementation — the more
 complex the dequantization, the more T-MAC can improve it.
 
-</details>
-
-<details>
-<summary>Multi-GPU (dual 7900 XTX)</summary>
+### Multi-GPU (dual 7900 XTX)
 
 Two GPUs allow running models that don't fit on a single card (e.g. Llama 70B at
 ~38 GB in Q4_0). T-MAC accelerates each GPU's work independently.
 
-| Model | Quant | Speedup |
-|-------|-------|--------:|
-| Mixtral 8x7B | IQ3_S | **+45.4%** |
-| Llama 70B | IQ2_XXS | **+18.9%** |
-| Llama 4 Scout | IQ2_XXS-UD | **+12.0%** |
-| Llama 70B | Q4_0 | **+6.5%** |
+<p align="center">
+  <img src="docs/tmac/chart-multigpu-throughput.png" alt="Multi-GPU throughput comparison" width="800">
+</p>
 
-> **Note:** Multi-GPU speedups are higher because fixed synchronization overhead
-> penalizes the stock baseline disproportionately. Single-GPU numbers are the
-> fairer comparison for most users.
+<details>
+<summary>Exact numbers (click to expand)</summary>
+
+| Model | Quant | Stock | T-MAC | Speedup |
+|-------|-------|------:|------:|--------:|
+| Mixtral 8x7B | IQ3_S | 55.5 t/s | 80.7 t/s | **+45.4%** |
+| Llama 4 Scout | IQ2_XXS-UD | 39.8 t/s | 44.6 t/s | **+12.0%** |
+| Llama 70B | IQ2_XXS | 19.3 t/s | 22.9 t/s | **+18.9%** |
+| Llama 70B | Q4_0 | 20.8 t/s | 22.2 t/s | **+6.5%** |
 
 </details>
+
+> **Note:** Multi-GPU speedups vary widely by quantization type. IQ types benefit
+> most because T-MAC's kernel optimization compounds with reduced synchronization
+> overhead. The Mixtral result (+45.4%) reflects MoE architecture advantages —
+> single-GPU numbers are the fairer baseline for most comparisons.
 
 <details>
 <summary>Tested model architectures</summary>
