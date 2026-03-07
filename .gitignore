@@ -164,6 +164,11 @@ a.out.*
 /docs/tmac/panel54-*.md
 /docs/tmac/p17-hw-counters.md
 
+# Benchmark database (reproducible from tracked CSVs)
+/data/benchmarks/*.db
+/data/benchmarks/*.db-wal
+/data/benchmarks/*.db-shm
+
 # Experimental benchmark scratch data
 /bench-panel-gaps-*.csv
 /model-zoo-*.csv
