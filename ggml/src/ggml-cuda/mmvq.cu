@@ -729,12 +729,17 @@ void ggml_cuda_mul_mat_vec_q(
             ne00, ne01,
             fusion->glu_op, stream,
             moe_ids, moe_stride, moe_n_used);
+        if (ids) tmac_count_expert_hit(ne00 * ne01 * 2);  // fused: UP + GATE = 2x
         return;
     }
 
     // Active Ratio: count ALL fused GLU quantized GEMV ops going through stock path
     if (ggml_cuda_tmac_enabled() && ne11 == 1 && fusion && fusion->gate) {
+        if (ids && ggml_cuda_tmac_is_supported_type(src0->type)) {
+            tmac_warn_expert_fallback(src0->type, ne00);
+        }
         tmac_count_miss(ne01 * ne00 * 2);  // fused: UP + GATE = 2x element count
+        if (ids) tmac_count_expert_miss(ne01 * ne00 * 2);
         tmac_log_miss(src0->type, ne00, "site4-fused");
         tmac_register_atexit_report();
     }

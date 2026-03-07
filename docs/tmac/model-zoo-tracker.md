@@ -36,8 +36,8 @@ These models were benchmarked before the model zoo expansion. Results in `benchm
 | OLMoE 1B-7B | 6.92B | MoE | Q4_0 | 3.8 GB | OK | — | — | OK | **+10.4%** | N=12 |
 | OLMoE 1B-7B | 6.92B | MoE | IQ3_S | 2.5 GB | OK | — | OK | OK | **+29.1%** | N=10 |
 | OLMoE 1B-7B | 6.92B | MoE | IQ3_XXS | 2.2 GB | OK | — | OK | OK | **+28.2%** | N=10 |
-| Nemotron 30B | 30B | MoE | Q4_0 | 17 GB | OK | — | — | OK | **+7.9%** | N=12 |
-| Nemotron 30B | 30B | MoE | Q4_K_M | 19 GB | OK | — | — | — | validated | — |
+| Nemotron 30B | 30B | MoE | Q4_0 | 17 GB | OK | — | — | OK | **+7.9%** ¹ | N=12 |
+| Nemotron 30B | 30B | MoE | Q4_K_M | 19 GB | OK | — | — | — | validated ¹ | — |
 | GLM-4.7-Flash | ~16B | MLA+MoE | Q4_K_M | 10 GB | OK | — | — | OK | **+15.2%** | N=10, nb_sub guard |
 | Devstral 24B | 24B | Dense | Q6_K_L | 20 GB | OK | — | — | OK | **+5.5%** | N=5 |
 | Jamba 3B | 3B | SSM-Hybrid | Q4_K_M | 1.8 GB | OK | — | — | OK | **+12.5%** | N=5 |
@@ -54,6 +54,25 @@ These models were benchmarked before the model zoo expansion. Results in `benchm
 | Mixtral 8x7B | 47B/13B | MoE | IQ3_S | 18 GB | OK | — | — | OK | **+45.4%** | N=10, dual GPU |
 | Llama 4 Scout | 109B/17B | ISWA-MoE | IQ2_XXS | 24 GB | OK | — | — | OK | **+12.0%** | N=10, dual GPU |
 | Qwen3.5-122B | 122B/10B | MoE | IQ2_XXS | 28 GB | OK | — | — | OK | **+7.4%** | N=10, dual GPU |
+| Qwen2-57B-A14B | 57B/14B | MoE (64E) | IQ3_XXS | 14 GB | OK | — | — | OK | **+54.5%** | N=12, single GPU, record |
+| Qwen2-57B-A14B | 57B/14B | MoE (64E) | Q4_K_M | 33 GB | OK | — | — | OK | **+13.1%** | N=5, dual GPU |
+| Jamba Mini 1.7 | 52B | SSM-MoE | IQ3_XXS | 14 GB | OK | — | — | OK | **+47.2%** | N=5, single GPU |
+| Jamba Mini 1.7 | 52B | SSM-MoE | Q6_K_L | 40 GB | OK | — | — | OK | **+7.3%** | N=5, dual GPU |
+| DBRX | 132B/36B | MoE (16E) | IQ2_XXS | 30 GB | OK | — | — | OK | **+22.0%** | N=5, dual GPU |
+| DeepSeek-V2-Lite | 16B | MoE (MLA) | Q4_K_M | 10 GB | OK | — | — | OK | **+15.9%** | N=5, single GPU |
+| OLMoE-1B-7B | 6.92B | MoE (64E) | IQ2_XXS | 1.8 GB | OK | — | — | OK | **+18.3%** | N=5, matched-quant |
+| Hunyuan-A13B | 85B/13B | MoE (256E) | IQ2_XXS | 19 GB | OK | — | — | — | +0.2% NS | N=5 |
+| Hunyuan-A13B | 85B/13B | MoE (256E) | Q4_K_M | 49 GB | OK | — | — | OK | **+10.3%** | N=5, dual GPU, matched-quant |
+| Hunyuan-A13B | 85B/13B | MoE (256E) | Q3_K_M | 38 GB | OK | — | — | — | **-4.9%** ² | N=5, dual GPU |
+
+¹ Nemotron expert dimensions (2688, 1856) both fail 256-alignment — ALL expert MoE layers
+fall back to stock. The +7.9% Q4_0 / validated Q4_K_M gains come entirely from dense and
+shared-expert layers. Active Ratio diagnostic confirms expert coverage = 0%.
+
+² Hunyuan Q3_K_M is the first confirmed T-MAC regression. Root cause *(hypothesis)*:
+marginal sub-block count (sb=32 down projection) at transitional Q3_K_M combined with
+cache locality loss from mixed dispatch (shared experts via T-MAC, routed experts via stock).
+Same model is neutral at IQ2_XXS (+0.2% NS).
 
 ---
 

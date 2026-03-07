@@ -2592,11 +2592,16 @@ static void ggml_cuda_mul_mat_id(ggml_backend_cuda_context & ctx, ggml_tensor * 
                             src0->data, src1_f, dst_f,
                             ne00, ne01, ctx.stream(),
                             moe_ids, src0->nb[2], (int)ids->ne[0], src1_exp_stride);
+                        tmac_count_expert_hit(ne00 * ne01);
                         return;
                     }
                     // Active Ratio: count ALL MoE quantized GEMV ops going through stock path
                     if (ggml_cuda_tmac_enabled()) {
+                        if (ne2 == 1 && ggml_cuda_tmac_is_supported_type(src0->type)) {
+                            tmac_warn_expert_fallback(src0->type, ne00);
+                        }
                         tmac_count_miss(src0->ne[0] * src0->ne[1]);
+                        tmac_count_expert_miss(src0->ne[0] * src0->ne[1]);
                         // ne2>1 means batched tokens (prefill) — not a coverage gap.
                         // T-MAC only handles batch=1 GEMV; prefill is matrix-matrix anyway.
                         if (ne2 > 1) tmac_count_miss_prefill();

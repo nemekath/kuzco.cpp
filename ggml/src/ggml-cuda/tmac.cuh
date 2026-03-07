@@ -108,6 +108,24 @@ static inline bool ggml_cuda_tmac_can_dispatch(ggml_type type, int64_t ne0) {
 #define TMAC_EXPERIMENT_LOG(name, type) \
     TMAC_LOG_ONCE("[TMAC] Experiment '%s' active for %s\n", (name), ggml_type_name(type))
 
+// One-time warning when MoE expert layers fall back to stock due to alignment/warp-efficiency.
+// Fires exactly once per process (thread-safe via static bool). Tells users which guard
+// rejected the expert tensors so they know dense/shared layers still use T-MAC.
+static inline void tmac_warn_expert_fallback(ggml_type type, int64_t ne0) {
+    static bool warned = false;
+    if (warned) return;
+    warned = true;
+    const char * reason = "unknown";
+    if (ne0 % 256 != 0 || ne0 < 256) {
+        reason = "alignment (ne0 % 256 != 0)";
+    } else {
+        // Must be warp efficiency guard
+        reason = "warp efficiency (nb_sub < 24)";
+    }
+    GGML_LOG_WARN("[TMAC] MoE expert layers using stock kernel: %s "
+                  "(type=%s, ne0=%lld). Dense/shared layers still use T-MAC.\n",
+                  reason, ggml_type_name(type), (long long)ne0);
+}
 
 // T-MAC v7.1: unfused GEMV for Q4_0 × F32 (v7.5: + MoE expert dispatch)
 void ggml_cuda_tmac_q4_0_simple(
@@ -486,6 +504,8 @@ struct tmac_active_ratio {
     int64_t total_elements; // FLOP-weighted: M*K elements processed by stock fallback
     int64_t alias_copies;   // fused ops where src1/dst aliasing required temp copy
     int64_t prefill_misses; // misses from prefill (ne2>1 batched MoE) — not a coverage gap
+    int64_t expert_tmac_elements;  // FLOP-weighted: expert MoE elements via T-MAC
+    int64_t expert_total_elements; // FLOP-weighted: expert MoE elements via stock
 };
 
 static inline tmac_active_ratio & tmac_get_counters() {
@@ -505,6 +525,14 @@ static inline void tmac_count_miss(int64_t elements = 1) {
 }
 static inline void tmac_count_miss_prefill() {
     tmac_get_counters().prefill_misses++;
+}
+// Expert-specific counters for dense/expert split in Active Ratio report.
+// Called at MoE dispatch sites (Site 3/6, Site 4/6) to track expert layer coverage separately.
+static inline void tmac_count_expert_hit(int64_t elements) {
+    tmac_get_counters().expert_tmac_elements += elements;
+}
+static inline void tmac_count_expert_miss(int64_t elements) {
+    tmac_get_counters().expert_total_elements += elements;
 }
 // Diagnostic: log WHY a miss happened (first occurrence per unique type+ne0 pair).
 // Enable via GGML_TMAC_LOG_MISSES=1 env var. Negligible overhead when disabled (static branch).
@@ -598,7 +626,18 @@ static inline void tmac_report_active_ratio() {
     const int64_t total_elem = c.tmac_elements + c.total_elements;
     if (total_elem > 0) {
         const double elem_ratio = 100.0 * c.tmac_elements / total_elem;
-        GGML_LOG_INFO("[TMAC] Compute Coverage: %.1f%% (by elements, FLOP-weighted)\n", elem_ratio);
+        // Show dense/expert split when model has MoE expert layers
+        const int64_t expert_total = c.expert_tmac_elements + c.expert_total_elements;
+        if (expert_total > 0) {
+            const double expert_ratio = 100.0 * c.expert_tmac_elements / expert_total;
+            const int64_t dense_tmac  = c.tmac_elements - c.expert_tmac_elements;
+            const int64_t dense_total = total_elem - expert_total;
+            const double dense_ratio  = dense_total > 0 ? 100.0 * dense_tmac / dense_total : 100.0;
+            GGML_LOG_INFO("[TMAC] Compute Coverage: %.1f%% (dense: %.1f%%, expert: %.1f%%)\n",
+                elem_ratio, dense_ratio, expert_ratio);
+        } else {
+            GGML_LOG_INFO("[TMAC] Compute Coverage: %.1f%% (by elements, FLOP-weighted)\n", elem_ratio);
+        }
     }
     // Aliasing stats: how many fused ops needed src1→temp copy.
     // High alias_copies count is normal for models like Llama 4 where the graph
@@ -617,6 +656,8 @@ static inline void tmac_reset_counters() {
     c.total_elements = 0;
     c.alias_copies = 0;
     c.prefill_misses = 0;
+    c.expert_tmac_elements = 0;
+    c.expert_total_elements = 0;
 }
 
 // Auto-report at process exit (registered once on first dispatch)
@@ -788,6 +829,9 @@ static inline void tmac_dispatch_fused(
 [[maybe_unused]] static inline void tmac_count_miss_prefill()                           { }
 [[maybe_unused]] static inline void tmac_log_miss(ggml_type, int64_t, const char *)     { }
 [[maybe_unused]] static inline void tmac_count_alias_copy()                             { }
+[[maybe_unused]] static inline void tmac_count_expert_hit(int64_t)                      { }
+[[maybe_unused]] static inline void tmac_count_expert_miss(int64_t)                     { }
+[[maybe_unused]] static inline void tmac_warn_expert_fallback(ggml_type, int64_t)       { }
 [[maybe_unused]] static inline void tmac_register_atexit_report()                       { }
 
 #define TMAC_LOG_ONCE(...) ((void)0)

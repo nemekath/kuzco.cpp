@@ -1,7 +1,7 @@
 # kuzco.cpp — the fast speaking Llama!
 
 > llama.cpp fork with T-MAC kernels for AMD RDNA3 — **+13-20% faster token generation**
-> on popular quantizations, **up to +37% on IQ types.**
+> on popular quantizations, **up to +55% on MoE+IQ types.**
 
 <p align="center">
   <img src="docs/kuzco-logo.png" alt="kuzco.cpp logo" width="400">
@@ -20,11 +20,11 @@ It replaces the inner math kernel that runs during text generation with a custom
 version optimized for AMD's GPU architecture. Everything else stays the same:
 same models, same output quality, same commands.
 
-- **+13-20% faster** on Q4_K_M (most popular), up to +37% on IQ quantizations
+- **+13-20% faster** on Q4_K_M (most popular), up to +55% on MoE+IQ quantizations
 - **Zero configuration** — auto-detects your GPU and activates automatically
 - **Bit-identical output** — same quality as stock llama.cpp (perplexity delta = 0.000)
 - **Safe fallback** — non-AMD hardware uses the stock kernel, nothing changes
-- **30+ models tested** across 13 architecture families, including Qwen3.5 and GLM-4.7
+- **31+ models tested** across 13 architecture families, including Qwen3.5 and GLM-4.7
 
 ## Performance
 
@@ -52,6 +52,7 @@ same models, same output quality, same commands.
 | OLMoE-1B-7B | 6.92B | Mixture-of-Experts | 325 t/s | 373 t/s | **+14.8%** |
 | GLM-4.7-Flash | ~16B | Mixture-of-Experts | 87.4 t/s | 100.7 t/s | **+15.2%** |
 | Qwen3.5-35B-A3B | ~35B | Mixture-of-Experts | 75.0 t/s | 83.7 t/s | **+11.7%** |
+| DeepSeek-V2-Lite | 16B | MoE+MLA | 155 t/s | 180 t/s | **+15.9%** |
 | Qwen3.5-9B | 9B | Dense | 69.8 t/s | 77.6 t/s | **+11.1%** |
 | QwQ-32B | 32B | Reasoning model | 29.9 t/s | 33.9 t/s | **+13.5%** |
 
@@ -75,11 +76,15 @@ VRAM, at the cost of lower output quality.
 
 | Model | Quant | bpw | VRAM savings vs Q4_K | Speedup |
 |-------|-------|----:|---------------------:|--------:|
+| Qwen2-57B-A14B | IQ3_XXS | 3.06 | ~36% less | **+54.5%** |
+| Jamba Mini 1.7 | IQ3_XXS | 3.06 | ~36% less | **+47.2%** |
 | Llama 1B | IQ3_XXS | 3.06 | ~36% less | **+36.9%** |
 | Llama 1B | IQ3_S | 3.44 | ~28% less | **+34.4%** |
 | OLMoE-1B-7B | IQ3_S | 3.44 | ~28% less | **+29.1%** |
 | Llama 70B | IQ2_XXS | 2.06 | ~57% less | **+25.8%** |
 | Llama 1B | IQ2_XXS | 2.06 | ~57% less | **+24.4%** |
+| DBRX | IQ2_XXS | 2.06 | ~57% less | **+22.0%** |
+| OLMoE-1B-7B | IQ2_XXS | 2.06 | ~57% less | **+18.3%** |
 | Llama 1B | IQ2_XS | 2.31 | ~52% less | **+17.0%** |
 | Llama 1B | IQ1_M | 1.75 | ~64% less | **+11.9%** |
 
@@ -104,15 +109,17 @@ Two GPUs allow running models that don't fit on a single card (e.g. Llama 70B at
 | Model | Quant | Stock | T-MAC | Speedup |
 |-------|-------|------:|------:|--------:|
 | Mixtral 8x7B | IQ3_S | 55.5 t/s | 80.7 t/s | **+45.4%** |
-| Llama 4 Scout | IQ2_XXS-UD | 39.8 t/s | 44.6 t/s | **+12.0%** |
+| DBRX | IQ2_XXS | 23.1 t/s | 28.2 t/s | **+22.0%** |
 | Llama 70B | IQ2_XXS | 19.3 t/s | 22.9 t/s | **+18.9%** |
+| Qwen2-57B-A14B | Q4_K_M | 53.7 t/s | 60.7 t/s | **+13.1%** |
+| Llama 4 Scout | IQ2_XXS-UD | 39.8 t/s | 44.6 t/s | **+12.0%** |
 | Llama 70B | Q4_0 | 20.8 t/s | 22.2 t/s | **+6.5%** |
 
 </details>
 
 > **Note:** Multi-GPU speedups vary widely by quantization type. IQ types benefit
 > most because T-MAC's kernel optimization compounds with reduced synchronization
-> overhead. The Mixtral result (+45.4%) reflects MoE architecture advantages —
+> overhead. The Mixtral result (+45.4%) combines MoE sparsity with IQ-type gains —
 > single-GPU numbers are the fairer baseline for most comparisons.
 
 <details>
@@ -128,7 +135,7 @@ T-MAC works with all major LLM architectures — not just standard transformer m
 | Linear attention | RWKV-6 | Validated |
 | Vision-Language (VLM) | Qwen2-VL | Validated |
 
-19 models statistically benchmarked (N≥5, paired t-test), 30+ models tested
+23 models statistically benchmarked (N≥5, paired t-test), 31+ models tested
 across 13 architecture families. Full benchmark data with confidence
 intervals and p-values: [docs/tmac/benchmarks.md](docs/tmac/benchmarks.md)
 
