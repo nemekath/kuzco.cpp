@@ -532,6 +532,29 @@ significantly — 100% dense coverage, 76.8% expert coverage), while Hunyuan has
 MoE ratio (expert layers dominate the compute). At IQ2_XXS, where expert layers are
 latency-bound, the dense layer contribution is enough to carry OLMoE but not Hunyuan.
 
+### Interpreting T-MAC diagnostic output
+
+T-MAC reports **Effective T-MAC Coverage (ETC)** at process exit for MoE models:
+
+```
+[TMAC] Compute Coverage: 95.9% (dense: 100.0%, expert: 64.6%)
+[TMAC] Effective T-MAC Coverage (ETC): 96% (dense 89% × 100.0% + expert 11% × 64.6%)
+```
+
+ETC combines coverage and compute fraction: `ETC = dense_frac × dense_dispatch + expert_frac × expert_dispatch`.
+Use ETC together with the quant type to estimate benefit:
+
+| ETC | Q4_K_M+ (≥4 bpw) | IQ3_S/IQ3_XXS (~3 bpw) | IQ2_XXS (~2 bpw) |
+|----:|:-----------------:|:----------------------:|:----------------:|
+| >90% | +10-20% | +25-55% | +15-25% |
+| 70-90% | +7-15% | +15-35% | +5-18% |
+| 40-70% | +3-10% | +5-15% | NS to +10% |
+| <40% | NS to +5% | NS | NS or regression |
+
+These are empirical ranges from 31+ validated models, not guarantees. Actual speedup depends
+on model size, memory pressure, and GPU thermal state. Dense-only models (no ETC line shown)
+should expect the full range for their quant type.
+
 ---
 
 ## SwiGLU MoE Validation (2026-02-19, re-verified 2026-02-21)

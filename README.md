@@ -1,7 +1,7 @@
 # kuzco.cpp — the fast speaking Llama!
 
 > llama.cpp fork with T-MAC kernels for AMD RDNA3 — **+13-20% faster token generation**
-> on popular quantizations, **up to +55% on MoE+IQ types.**
+> on popular quantizations, **up to +55% on MoE+IQ types** (median +14-18% across 30+ models).
 
 <p align="center">
   <img src="docs/kuzco-logo.png" alt="kuzco.cpp logo" width="400">
@@ -20,7 +20,7 @@ It replaces the inner math kernel that runs during text generation with a custom
 version optimized for AMD's GPU architecture. Everything else stays the same:
 same models, same output quality, same commands.
 
-- **+13-20% faster** on Q4_K_M (most popular), up to +55% on MoE+IQ quantizations
+- **+13-20% faster** on Q4_K_M (most popular), up to +55% on MoE+IQ (median +14-18%)
 - **Zero configuration** — auto-detects your GPU and activates automatically
 - **Bit-identical output** — same quality as stock llama.cpp (perplexity delta = 0.000)
 - **Safe fallback** — non-AMD hardware uses the stock kernel, nothing changes
@@ -225,6 +225,10 @@ for chat and roleplay with LLMs.
 - **Alignment constraints:** Some quantization types require hidden dimensions
   divisible by 256. Models with non-standard dimensions partially fall back
   to stock. Most popular models are unaffected.
+- **MoE fine-grained experts:** Models with many small experts (e.g. 256 experts
+  with FFN < 1024) may see reduced or no benefit on IQ/Q3 types. Dense and shared
+  layers still benefit. One known regression: Hunyuan-A13B Q3_K_M (-4.9%). Use
+  Q4_K_M or higher for best results on fine-grained MoE architectures.
 - **Single hardware tested:** All benchmarks on RX 7900 XTX. Performance
   may vary on other RDNA3 SKUs.
 - To disable T-MAC and fall back to stock kernels: `export GGML_HIP_NO_TMAC=1`

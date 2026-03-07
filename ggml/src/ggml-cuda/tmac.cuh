@@ -505,11 +505,11 @@ struct tmac_active_ratio {
     int64_t alias_copies;   // fused ops where src1/dst aliasing required temp copy
     int64_t prefill_misses; // misses from prefill (ne2>1 batched MoE) — not a coverage gap
     int64_t expert_tmac_elements;  // FLOP-weighted: expert MoE elements via T-MAC
-    int64_t expert_total_elements; // FLOP-weighted: expert MoE elements via stock
+    int64_t expert_stock_elements; // FLOP-weighted: expert MoE elements via stock
 };
 
 static inline tmac_active_ratio & tmac_get_counters() {
-    static tmac_active_ratio counters = {0, 0, 0, 0};
+    static tmac_active_ratio counters = {};
     return counters;
 }
 
@@ -532,7 +532,7 @@ static inline void tmac_count_expert_hit(int64_t elements) {
     tmac_get_counters().expert_tmac_elements += elements;
 }
 static inline void tmac_count_expert_miss(int64_t elements) {
-    tmac_get_counters().expert_total_elements += elements;
+    tmac_get_counters().expert_stock_elements += elements;
 }
 // Diagnostic: log WHY a miss happened (first occurrence per unique type+ne0 pair).
 // Enable via GGML_TMAC_LOG_MISSES=1 env var. Negligible overhead when disabled (static branch).
@@ -627,7 +627,7 @@ static inline void tmac_report_active_ratio() {
     if (total_elem > 0) {
         const double elem_ratio = 100.0 * c.tmac_elements / total_elem;
         // Show dense/expert split when model has MoE expert layers
-        const int64_t expert_total = c.expert_tmac_elements + c.expert_total_elements;
+        const int64_t expert_total = c.expert_tmac_elements + c.expert_stock_elements;
         if (expert_total > 0) {
             const double expert_ratio = 100.0 * c.expert_tmac_elements / expert_total;
             const int64_t dense_tmac  = c.tmac_elements - c.expert_tmac_elements;
@@ -635,6 +635,13 @@ static inline void tmac_report_active_ratio() {
             const double dense_ratio  = dense_total > 0 ? 100.0 * dense_tmac / dense_total : 100.0;
             GGML_LOG_INFO("[TMAC] Compute Coverage: %.1f%% (dense: %.1f%%, expert: %.1f%%)\n",
                 elem_ratio, dense_ratio, expert_ratio);
+            // Effective T-MAC Coverage (ETC): weighted by dense/expert compute fractions.
+            // Predicts speedup direction: >70% = full benefit, 40-70% = attenuated, <30% = NS/regression.
+            const double dense_frac  = dense_total > 0 ? (double)dense_total / total_elem : 0.0;
+            const double expert_frac = (double)expert_total / total_elem;
+            const double etc = dense_frac * (dense_ratio / 100.0) + expert_frac * (expert_ratio / 100.0);
+            GGML_LOG_INFO("[TMAC] Effective T-MAC Coverage (ETC): %.0f%% (dense %.0f%% × %.1f%% + expert %.0f%% × %.1f%%)\n",
+                etc * 100.0, dense_frac * 100.0, dense_ratio, expert_frac * 100.0, expert_ratio);
         } else {
             GGML_LOG_INFO("[TMAC] Compute Coverage: %.1f%% (by elements, FLOP-weighted)\n", elem_ratio);
         }
@@ -657,7 +664,7 @@ static inline void tmac_reset_counters() {
     c.alias_copies = 0;
     c.prefill_misses = 0;
     c.expert_tmac_elements = 0;
-    c.expert_total_elements = 0;
+    c.expert_stock_elements = 0;
 }
 
 // Auto-report at process exit (registered once on first dispatch)
