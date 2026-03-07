@@ -24,7 +24,7 @@ same models, same output quality, same commands.
 - **Zero configuration** — auto-detects your GPU and activates automatically
 - **Bit-identical output** — same quality as stock llama.cpp (perplexity delta = 0.000)
 - **Safe fallback** — non-AMD hardware uses the stock kernel, nothing changes
-- **30+ models tested** (19 statistically benchmarked) across 13 architecture families, 17 quantization types
+- **30+ models tested** across 13 architecture families, including latest releases (Qwen3.5, GLM-4.7)
 
 ## Why does this exist?
 
@@ -93,7 +93,9 @@ possible. MIT license, same as upstream.
 | Llama 3.2 1B | 1.24B | Small, fast model | 373 t/s | 449 t/s | **+20.3%** |
 | Codestral 22B | 22.25B | Code generation | 40.0 t/s | 45.7 t/s | **+14.1%** |
 | OLMoE-1B-7B | 6.92B | Mixture-of-Experts | 325 t/s | 373 t/s | **+14.8%** |
-| GLM-4.7-Flash | ~16B | Mixture-of-Experts | 87.4 t/s | 100.7 t/s | **+15.2%** |
+| GLM-4.7-Flash | ~16B | MoE (June 2025) | 87.4 t/s | 100.7 t/s | **+15.2%** |
+| Qwen3.5-35B-A3B | ~35B | MoE (June 2025) | 75.0 t/s | 83.7 t/s | **+11.7%** |
+| Qwen3.5-9B | 9B | Dense (June 2025) | 69.8 t/s | 77.6 t/s | **+11.1%** |
 | QwQ-32B | 32B | Reasoning model | 29.9 t/s | 33.9 t/s | **+13.5%** |
 
 </details>
@@ -152,8 +154,8 @@ T-MAC works with all major LLM architectures — not just standard transformer m
 
 | Architecture | Example Models | Status |
 |-------------|----------------|--------|
-| Dense transformer | Llama, Codestral, QwQ | Validated |
-| Mixture-of-Experts (MoE) | OLMoE, Mixtral, Nemotron | Validated |
+| Dense transformer | Llama, Codestral, QwQ, Qwen3.5 | Validated |
+| Mixture-of-Experts (MoE) | OLMoE, Mixtral, GLM-4.7, Qwen3.5-A3B | Validated |
 | State-Space (SSM) | Mamba, Falcon H1, Jamba | Validated |
 | Linear attention | RWKV-6 | Validated |
 | Vision-Language (VLM) | Qwen2-VL | Validated |
