@@ -19,6 +19,13 @@ OUT_DIR="${OUT_DIR:-/out}"
 SMOKE_MODEL="${SMOKE_MODEL:-Llama-3.2-1B-Instruct-Q4_0.gguf}"
 SKIP_TESTS="${SKIP_TESTS:-0}"
 DRY_RUN="${DRY_RUN:-0}"
+# Auto-detect and exclude iGPUs (e.g. gfx1036) to prevent segfaults
+GUARD="$(cd "$(dirname "$0")/../.." && pwd)/scripts/hip-gpu-guard.sh"
+if [ -f "$GUARD" ]; then
+    source "$GUARD"
+else
+    export HIP_VISIBLE_DEVICES="${HIP_VISIBLE_DEVICES:-0}"
+fi
 JOBS="${JOBS:-$(nproc)}"
 
 # Detect platform for package naming
@@ -67,13 +74,23 @@ log "Build complete"
 if [ "$SKIP_TESTS" = "1" ]; then
     log "Skipping GPU smoke tests (SKIP_TESTS=1)"
 else
+    export LD_LIBRARY_PATH="${BUILD_DIR}/bin:${BUILD_DIR}/lib:${LD_LIBRARY_PATH:-}"
     SMOKE="${MODEL_DIR}/${SMOKE_MODEL}"
     [ -f "$SMOKE" ] || err "Smoke model not found: ${SMOKE}"
 
     log "Smoke test 1/4: math coherence"
-    echo "" | ./bin/llama-completion -m "$SMOKE" -p "What is 2+2? Answer with just the number:" \
-        -n 10 -ngl 99 2>/dev/null | grep -q "4" \
-        || err "Math coherence test failed"
+    MATH_STDERR=$(mktemp)
+    MATH_OUT=$(echo "" | ./bin/llama-completion -m "$SMOKE" -p "What is 2+2? Answer with just the number:" \
+        -n 10 -ngl 99 2>"$MATH_STDERR" || true)
+    if echo "$MATH_OUT" | grep -q "4"; then
+        rm -f "$MATH_STDERR"
+    else
+        log "stdout: [$MATH_OUT]"
+        log "stderr (last 5 lines):"
+        tail -5 "$MATH_STDERR" | while IFS= read -r line; do log "  $line"; done
+        rm -f "$MATH_STDERR"
+        err "Math coherence test failed"
+    fi
 
     log "Smoke test 2/4: text generation"
     OUTPUT=$(echo "" | ./bin/llama-completion -m "$SMOKE" -p "The capital of France is" \

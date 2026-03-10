@@ -12,6 +12,9 @@
 set -euo pipefail
 export LC_NUMERIC=C  # Force decimal point (not comma) for de_DE and similar locales
 
+# Auto-detect and exclude iGPUs (e.g. gfx1036) to prevent segfaults
+source "$(dirname "$0")/hip-gpu-guard.sh"
+
 # ─── Defaults ───────────────────────────────────────────────────────────
 N=${N:-5}
 WARMUP=${WARMUP:-1}

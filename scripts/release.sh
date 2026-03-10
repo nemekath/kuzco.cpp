@@ -87,6 +87,7 @@ if [ "$LOCAL_ONLY" != "1" ]; then
             -v "${MODEL_DIR}:/models:ro" \
             -v "${RELEASE_DIR}:/out" \
             -e "TAG=${TAG}" \
+            -e "HIP_VISIBLE_DEVICES=${HIP_VISIBLE_DEVICES:-0}" \
             -w /src \
             "$IMAGE_NAME" \
             bash ci/release-build/build-and-test.sh

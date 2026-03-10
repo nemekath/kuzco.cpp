@@ -5,6 +5,8 @@
 
 set -euo pipefail
 
+cd "$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"
+
 FAIL=0
 
 check_marker() {
