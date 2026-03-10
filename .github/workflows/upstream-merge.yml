@@ -2,7 +2,7 @@ name: Upstream Merge
 
 on:
   schedule:
-    - cron: '0 2 * * 0'  # Sunday 02:00 UTC
+    - cron: '0 2 * * *'  # Daily 02:00 UTC
   workflow_dispatch:
     inputs:
       auto_merge_cat_a:
