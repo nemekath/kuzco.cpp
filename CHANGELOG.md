@@ -2,20 +2,32 @@
 
 > Versions v1.0–v1.6 were development milestones prior to the public fork migration.
 
-## Unreleased — Qwen3.5 + ROCm 7.2 Validation
+## v2.0.0 — Proper GitHub Fork + Qwen3.5 + ROCm 7.2
+
+**Release date:** 2026-03-10
+
+### Highlights
+
+- **Proper GitHub fork** of [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp) with full upstream history
+- **Qwen3.5 family** benchmarks: 9B +11.1%, 27B +9.5%, 35B-A3B (MoE) +11.7%, 27B Q8_0 dual-GPU +6.3%
+- **ROCm 7.2.0 validated:** 14 models, 8 quant types, zero regressions
+- 30+ models across 13 architecture families, all PPL Δ=0.000
 
 ### Added
-- Qwen3.5 family benchmarks: 9B +11.1%, 27B +9.5%, 35B-A3B (MoE) +11.7%, 27B Q8_0 dual-GPU +6.3%
-- ROCm 7.2.0 validation: 14 models, 8 quant types, zero regressions
-- Container-based ROCm validation infrastructure (`ci/rocm-validation/`)
+- Qwen3.5 family benchmarks (9B, 27B, 35B-A3B, 122B)
+- ROCm 7.2.0 validation infrastructure (`ci/rocm-validation/`)
 - 95% confidence intervals for all model zoo entries
 - Batch=1 scope caveat on all tg128 benchmark tables
 - Scout Q4_K_M rerun at N=10 (Parity, CPU offload CV=14-18%)
 - Model zoo utility scripts
+- Pre-commit hook to prevent internal workflow leaks
 
 ### Changed
+- Migrated from standalone repo to proper GitHub fork (full upstream git history)
+- Default branch: `tmac` (upstream `master` untouched for rebasing)
 - Scout Q4_K_M reframed from +2.6% to "Parity" (CPU offload variance too high)
 - 30+ models across 13 architecture families (was 26)
+- Removed all upstream files previously deleted (kept intact for cleaner rebases)
 
 ## v1.6 — Upstream Rebase + Cleanup
 
