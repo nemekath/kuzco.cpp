@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+# pre-commit — Block commits that leak internal workflow terms or private data.
+#
+# Scans staged text files for forbidden patterns. Binary files are skipped.
+# To bypass in emergencies: git commit --no-verify (but don't).
+
+set -euo pipefail
+
+# ── Forbidden patterns (case-insensitive grep -E) ──────────────────────
+# Each line: "pattern|description"
+RULES=(
+  'Panel #[0-9]|Internal workflow reference (Panel #N)'
+  'Gremium|Internal workflow reference (Gremium)'
+  'expert panel|Internal workflow reference (expert panel)'
+  'unanimous|Internal workflow reference (unanimous)'
+  '5/5\+Gemini|Internal workflow reference (5/5+Gemini)'
+  'Panel consensus|Internal workflow reference (Panel consensus)'
+  'Panel Prio|Internal workflow reference (Panel Prio)'
+  'Claude Task agent|Internal workflow reference (Claude Task agent)'
+  'Dr\. Kenji Tanaka|Internal workflow reference (panel member name)'
+  'Sarah Chen.*kernel|Internal workflow reference (panel member name)'
+  'Marcus Rivera|Internal workflow reference (panel member name)'
+  'Dr\. Lena Voss|Internal workflow reference (panel member name)'
+  'Alex Petrov|Internal workflow reference (panel member name)'
+  'Co-Authored-By:.*Claude|AI authoring attribution'
+  'Co-Authored-By:.*Anthropic|AI authoring attribution'
+  'Co-Authored-By:.*noreply@anthropic|AI authoring attribution'
+  '\.serena/memories|Serena memory path disclosure'
+  'serena.*memor|Serena memory reference'
+  'workflow-expert-panel|Internal memory name'
+)
+
+# ── Files to skip ──────────────────────────────────────────────────────
+# CLAUDE.md and AGENTS.md are gitignored but check anyway; backup.sh
+# legitimately references .serena paths for operational backup.
+EXCLUDE_FILES="CLAUDE.md|AGENTS.md|scripts/backup.sh|scripts/hooks/pre-commit"
+
+ERRORS=0
+
+for rule in "${RULES[@]}"; do
+  pattern="${rule%%|*}"
+  description="${rule#*|}"
+
+  # Search staged (cached) content, text files only, case-insensitive
+  matches=$(git diff --cached --name-only -z \
+    | xargs -0 grep -rilE "$pattern" 2>/dev/null \
+    | grep -vE "$EXCLUDE_FILES" || true)
+
+  if [[ -n "$matches" ]]; then
+    echo "BLOCKED: $description"
+    echo "  Pattern: $pattern"
+    echo "  Files:"
+    echo "$matches" | sed 's/^/    /'
+    echo ""
+    ERRORS=$((ERRORS + 1))
+  fi
+done
+
+if [[ $ERRORS -gt 0 ]]; then
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  echo "Commit blocked: $ERRORS internal workflow leak(s) found."
+  echo "Fix the files above, or use --no-verify to bypass."
+  echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+  exit 1
+fi
