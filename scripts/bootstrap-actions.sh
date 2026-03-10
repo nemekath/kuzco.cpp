@@ -24,7 +24,7 @@ if [ "$ENABLED" = "false" ]; then
     log "Actions currently disabled. Re-enabling with restricted permissions..."
     if [ "$DRY_RUN" = "0" ]; then
         gh api -X PUT "repos/${REPO}/actions/permissions" \
-            -f enabled=true \
+            -F enabled=true \
             -f allowed_actions=all
     else
         log "[DRY RUN] gh api -X PUT repos/${REPO}/actions/permissions -f enabled=true -f allowed_actions=all"
