@@ -47,14 +47,24 @@ EXCLUDE_FILES="CLAUDE.md|AGENTS.md|scripts/backup.sh|scripts/hooks/pre-commit|sc
 
 ERRORS=0
 
+# Get list of staged files (excluding deleted files and excluded paths)
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=d \
+  | grep -vE "$EXCLUDE_FILES" || true)
+
+[[ -z "$STAGED_FILES" ]] && exit 0
+
 for rule in "${RULES[@]}"; do
   pattern="${rule%%|*}"
   description="${rule#*|}"
 
-  # Search staged (cached) content, text files only, case-insensitive
-  matches=$(git diff --cached --name-only -z \
-    | xargs -0 grep -rilE "$pattern" 2>/dev/null \
-    | grep -vE "$EXCLUDE_FILES" || true)
+  # Search actual staged (index) content, not working tree
+  matches=""
+  while IFS= read -r file; do
+    if git show ":0:$file" 2>/dev/null | grep -qiE "$pattern"; then
+      matches+="$file"$'\n'
+    fi
+  done <<< "$STAGED_FILES"
+  matches="${matches%$'\n'}"  # trim trailing newline
 
   if [[ -n "$matches" ]]; then
     echo "BLOCKED: $description"

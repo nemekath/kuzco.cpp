@@ -14,8 +14,8 @@
 set -euo pipefail
 export LC_NUMERIC=C  # Force decimal point for de_DE and similar locales
 
-# Exclude iGPU (gfx1036 segfaults) — default to GPU 0 if not set
-export HIP_VISIBLE_DEVICES="${HIP_VISIBLE_DEVICES:-0}"
+# Auto-detect and exclude iGPUs (e.g. gfx1036) to prevent segfaults
+source "$(dirname "$0")/hip-gpu-guard.sh" 2>/dev/null || export HIP_VISIBLE_DEVICES="${HIP_VISIBLE_DEVICES:-0}"
 
 # ─── Defaults ───────────────────────────────────────────────────────────
 BENCH="${BENCH:-./build/bin/llama-bench}"
@@ -92,8 +92,8 @@ fi
 
 # ─── Environment snapshot ──────────────────────────────────────────────
 ROCM_VER=$(cat /opt/rocm/.info/version 2>/dev/null || echo "unknown")
-HIP_VER=$(hipcc --version 2>/dev/null | grep -oP 'HIP version: \K\S+' || echo "unknown")
-GPU_NAME=$(rocm-smi --showproductname 2>/dev/null | grep -oP 'Card Series:\s+\K.*' | head -1 || echo "unknown")
+HIP_VER=$(hipcc --version 2>/dev/null | sed -n 's/.*HIP version: \(\S*\).*/\1/p' || echo "unknown")
+GPU_NAME=$(rocm-smi --showproductname 2>/dev/null | sed -n 's/.*Card Series:[[:space:]]*//p' | head -1 || echo "unknown")
 KERNEL_VER=$(uname -r)
 TMAC_COMMIT=$(git -C "$(dirname "$0")/.." rev-parse --short HEAD 2>/dev/null || echo "unknown")
 
@@ -444,7 +444,7 @@ section_power() {
                 power_log=$(mktemp /tmp/power-XXXXXX.log)
                 (
                     while true; do
-                        rocm-smi --showpower 2>/dev/null | grep -oP '\d+\.\d+ W' | head -1 >> "$power_log"
+                        rocm-smi --showpower 2>/dev/null | grep -oE '[0-9]+\.[0-9]+ W' | head -1 >> "$power_log"
                         sleep 0.5
                     done
                 ) &
@@ -510,7 +510,7 @@ section_deepseek_671b() {
         -m "$model" -p "The capital of France is" -n 64 -ngl 99 \
         --tensor-split 0.5,0.5 2>&1)
     local tmac_ts
-    tmac_ts=$(echo "$tmac_out" | grep -oP '[\d.]+ tokens per second' | head -1 | awk '{print $1}')
+    tmac_ts=$(echo "$tmac_out" | grep -oE '[0-9.]+ tokens per second' | head -1 | awk '{print $1}')
     local tmac_ar
     tmac_ar=$(echo "$tmac_out" | grep "Active Ratio" | tail -1 || echo "N/A")
     printf "%s t/s, %s\n" "${tmac_ts:-N/A}" "$tmac_ar"
@@ -522,7 +522,7 @@ section_deepseek_671b() {
         -m "$model" -p "The capital of France is" -n 64 -ngl 99 \
         --tensor-split 0.5,0.5 2>&1)
     local stock_ts
-    stock_ts=$(echo "$stock_out" | grep -oP '[\d.]+ tokens per second' | head -1 | awk '{print $1}')
+    stock_ts=$(echo "$stock_out" | grep -oE '[0-9.]+ tokens per second' | head -1 | awk '{print $1}')
     printf "%s t/s\n" "${stock_ts:-N/A}"
 
     if [[ -n "$tmac_ts" ]] && [[ -n "$stock_ts" ]]; then

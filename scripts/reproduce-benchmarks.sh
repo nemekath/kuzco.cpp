@@ -85,8 +85,8 @@ fi
 
 # ─── Environment snapshot ─────────────────────────────────────────────
 ROCM_VER=$(cat /opt/rocm/.info/version 2>/dev/null || echo "unknown")
-HIP_VER=$(hipcc --version 2>/dev/null | grep -oP 'HIP version: \K\S+' || echo "unknown")
-GPU_NAME=$(rocminfo 2>/dev/null | grep -oP 'Marketing Name:\s+\K.*' | head -1 || echo "unknown")
+HIP_VER=$(hipcc --version 2>/dev/null | sed -n 's/.*HIP version: \(\S*\).*/\1/p' || echo "unknown")
+GPU_NAME=$(rocminfo 2>/dev/null | sed -n 's/.*Marketing Name:[[:space:]]*//p' | head -1 || echo "unknown")
 KERNEL_VER=$(uname -r)
 COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 MODEL_BASE=$(basename "$MODEL")

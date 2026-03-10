@@ -46,7 +46,7 @@ BUILD_DIR="./build/bin"
 BENCH="${BENCH:-$BUILD_DIR/llama-bench}"
 COMPLETION="${COMPLETION:-$BUILD_DIR/llama-completion}"
 PERPLEXITY="${PERPLEXITY:-$BUILD_DIR/llama-perplexity}"
-WIKITEXT="${WIKITEXT:?Set WIKITEXT to path to wiki.test.raw (see scripts/get-wikitext-2.sh)}"
+WIKITEXT="${WIKITEXT:-}"
 
 # VRAM threshold for auto dual-GPU detection (bytes)
 DUAL_GPU_THRESHOLD=$((23 * 1024 * 1024 * 1024))  # 23 GB
@@ -107,6 +107,9 @@ if [[ -z "$CSV_FILE" ]]; then
     CSV_FILE="model-zoo-${MODEL_NAME}-$(date +%Y%m%d-%H%M%S).csv"
 fi
 
+# Auto-detect and exclude iGPUs (e.g. gfx1036) to prevent segfaults
+source "$(dirname "$0")/hip-gpu-guard.sh" 2>/dev/null || true
+
 # Auto-detect GPU mode
 if [[ -z "$DUAL_GPU" ]]; then
     if (( MODEL_SIZE > DUAL_GPU_THRESHOLD )); then
@@ -143,8 +146,8 @@ done
 
 # ─── Environment snapshot ──────────────────────────────────────────────
 ROCM_VER=$(cat /opt/rocm/.info/version 2>/dev/null || echo "unknown")
-HIP_VER=$(hipcc --version 2>/dev/null | grep -oP 'HIP version: \K\S+' || echo "unknown")
-GPU_NAME=$(rocm-smi --showproductname 2>/dev/null | grep -oP 'Card Series:\s+\K.*' | head -1 || echo "unknown")
+HIP_VER=$(hipcc --version 2>/dev/null | sed -n 's/.*HIP version: \(\S*\).*/\1/p' || echo "unknown")
+GPU_NAME=$(rocm-smi --showproductname 2>/dev/null | sed -n 's/.*Card Series:[[:space:]]*//p' | head -1 || echo "unknown")
 KERNEL_VER=$(uname -r)
 TMAC_COMMIT=$(git -C "$(dirname "$0")/.." rev-parse --short HEAD 2>/dev/null || echo "unknown")
 
@@ -175,13 +178,13 @@ declare -A RESULTS
 extract_active_ratio() {
     local stderr_file="$1"
     # T-MAC prints: "T-MAC: Active Ratio: 100.0% (N/M dispatched via T-MAC)"
-    grep -oP 'Active Ratio: \K[\d.]+%' "$stderr_file" | tail -1 || echo "N/A"
+    sed -n 's/.*Active Ratio: \([0-9.]*%\).*/\1/p' "$stderr_file" | tail -1 || echo "N/A"
 }
 
 # ─── Helper: extract Compute Coverage from stderr ──────────────────────
 extract_compute_coverage() {
     local stderr_file="$1"
-    grep -oP 'Compute Coverage: \K[\d.]+%' "$stderr_file" | tail -1 || echo "N/A"
+    sed -n 's/.*Compute Coverage: \([0-9.]*%\).*/\1/p' "$stderr_file" | tail -1 || echo "N/A"
 }
 
 # ─── Helper: run_bench (same pattern as tmac-regression.sh) ────────────
@@ -400,6 +403,13 @@ tier3_perplexity() {
         return 1
     fi
 
+    if [[ -z "$WIKITEXT" ]]; then
+        fail "WIKITEXT env var not set (path to wiki.test.raw)"
+        warn "Download with: scripts/get-wikitext-2.sh, then set WIKITEXT=/path/to/wiki.test.raw"
+        RESULTS[T3]="SKIP"
+        return 1
+    fi
+
     if [[ ! -f "$WIKITEXT" ]]; then
         fail "Wikitext-2 corpus not found: $WIKITEXT"
         warn "Download with: scripts/get-wikitext-2.sh, then set WIKITEXT=/path/to/wiki.test.raw"
@@ -416,10 +426,10 @@ tier3_perplexity() {
         -m "$MODEL" -ngl 99 -f "$WIKITEXT" $GPU_ARGS \
         2>&1) || true
 
-    ppl_tmac=$(echo "$tmac_output" | grep -oP 'Final estimate: PPL = \K[\d.]+' | tail -1)
+    ppl_tmac=$(echo "$tmac_output" | sed -n 's/.*Final estimate: PPL = \([0-9.]*\).*/\1/p' | tail -1)
     if [[ -z "$ppl_tmac" ]]; then
         # Alternative format
-        ppl_tmac=$(echo "$tmac_output" | grep -oP 'perplexity = \K[\d.]+' | tail -1)
+        ppl_tmac=$(echo "$tmac_output" | sed -n 's/.*perplexity = \([0-9.]*\).*/\1/p' | tail -1)
     fi
 
     if [[ -z "$ppl_tmac" ]]; then
@@ -437,9 +447,9 @@ tier3_perplexity() {
         -m "$MODEL" -ngl 99 -f "$WIKITEXT" $GPU_ARGS \
         2>&1) || true
 
-    ppl_stock=$(echo "$stock_output" | grep -oP 'Final estimate: PPL = \K[\d.]+' | tail -1)
+    ppl_stock=$(echo "$stock_output" | sed -n 's/.*Final estimate: PPL = \([0-9.]*\).*/\1/p' | tail -1)
     if [[ -z "$ppl_stock" ]]; then
-        ppl_stock=$(echo "$stock_output" | grep -oP 'perplexity = \K[\d.]+' | tail -1)
+        ppl_stock=$(echo "$stock_output" | sed -n 's/.*perplexity = \([0-9.]*\).*/\1/p' | tail -1)
     fi
 
     if [[ -z "$ppl_stock" ]]; then

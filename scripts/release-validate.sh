@@ -25,7 +25,7 @@ BENCH="./build/bin/llama-bench"
 COMPLETION="./build/bin/llama-completion"
 PERPLEXITY="./build/bin/llama-perplexity"
 SMOKE_MODEL="models/1B-Q4_K_M.gguf"
-WIKITEXT="${WIKITEXT:?Set WIKITEXT to path to wiki.test.raw (see scripts/get-wikitext-2.sh)}"
+WIKITEXT="${WIKITEXT:-}"
 RESULTS_DIR="release-validation-$(date +%Y%m%d-%H%M%S)"
 
 # Perplexity test models — covers stock (Q4_0), K-quant (Q4_K_M), IQ (IQ3_S)
@@ -201,7 +201,7 @@ if should_run 2; then
     TMAC_OUT=$(echo "" | "$COMPLETION" \
         -m "$SMOKE_MODEL" -p "Hello" -n 5 -ngl 99 2>&1 || true)
     if echo "$TMAC_OUT" | grep -q "Active Ratio"; then
-        ACTIVE=$(echo "$TMAC_OUT" | grep "Active Ratio" | tail -1 | grep -oP '[\d.]+%' | head -1)
+        ACTIVE=$(echo "$TMAC_OUT" | grep "Active Ratio" | tail -1 | grep -oE '[0-9.]+%' | head -1)
         ok "T-MAC active ($ACTIVE)"
     else
         warn "T-MAC activation not detected in output"
@@ -233,6 +233,11 @@ if should_run 3; then
         fail "llama-perplexity not found: $PERPLEXITY"
         exit 1
     fi
+    if [[ -z "$WIKITEXT" ]]; then
+        fail "WIKITEXT env var not set (path to wiki.test.raw)"
+        warn "Download: scripts/get-wikitext-2.sh"
+        exit 1
+    fi
     if [[ ! -f "$WIKITEXT" ]]; then
         fail "Wikitext-2 not found: $WIKITEXT"
         warn "Download: scripts/get-wikitext-2.sh"
@@ -248,14 +253,15 @@ if should_run 3; then
 
         if [[ ! -f "$model" ]]; then
             warn "Skipping $model_name — model file not found"
+            PPL_TOTAL=$((PPL_TOTAL - 1))
             continue
         fi
 
         log "Perplexity: $model_name (T-MAC)"
         tmac_out=$("$PERPLEXITY" \
             -m "$model" -ngl 99 -f "$WIKITEXT" 2>&1) || true
-        ppl_tmac=$(echo "$tmac_out" | grep -oP 'Final estimate: PPL = \K[\d.]+' | tail -1)
-        [[ -z "$ppl_tmac" ]] && ppl_tmac=$(echo "$tmac_out" | grep -oP 'perplexity = \K[\d.]+' | tail -1)
+        ppl_tmac=$(echo "$tmac_out" | sed -n 's/.*Final estimate: PPL = \([0-9.]*\).*/\1/p' | tail -1)
+        [[ -z "$ppl_tmac" ]] && ppl_tmac=$(echo "$tmac_out" | sed -n 's/.*perplexity = \([0-9.]*\).*/\1/p' | tail -1)
 
         if [[ -z "$ppl_tmac" ]]; then
             fail "$model_name: could not extract T-MAC PPL"
@@ -266,8 +272,8 @@ if should_run 3; then
         log "Perplexity: $model_name (stock)"
         stock_out=$(GGML_HIP_NO_TMAC=1 "$PERPLEXITY" \
             -m "$model" -ngl 99 -f "$WIKITEXT" 2>&1) || true
-        ppl_stock=$(echo "$stock_out" | grep -oP 'Final estimate: PPL = \K[\d.]+' | tail -1)
-        [[ -z "$ppl_stock" ]] && ppl_stock=$(echo "$stock_out" | grep -oP 'perplexity = \K[\d.]+' | tail -1)
+        ppl_stock=$(echo "$stock_out" | sed -n 's/.*Final estimate: PPL = \([0-9.]*\).*/\1/p' | tail -1)
+        [[ -z "$ppl_stock" ]] && ppl_stock=$(echo "$stock_out" | sed -n 's/.*perplexity = \([0-9.]*\).*/\1/p' | tail -1)
 
         if [[ -z "$ppl_stock" ]]; then
             fail "$model_name: could not extract stock PPL"

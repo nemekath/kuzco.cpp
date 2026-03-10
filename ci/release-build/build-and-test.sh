@@ -140,7 +140,7 @@ kuzco.cpp ${TAG}
 Built on: $(date -u +"%Y-%m-%d %H:%M UTC")
 Platform: ${PLATFORM} ${ARCH}
 ROCm:     $(cat /opt/rocm/.info/version 2>/dev/null || echo "unknown")
-glibc:    $(ldd --version 2>&1 | head -1 | grep -oP '[\d.]+$' || echo "unknown")
+glibc:    $(ldd --version 2>&1 | head -1 | grep -oE '[0-9.]+$' || echo "unknown")
 
 T-MAC GEMV kernels enabled for RDNA3 (gfx1100).
 Opt-out: GGML_HIP_NO_TMAC=1
