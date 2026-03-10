@@ -1,0 +1,301 @@
+name: Upstream Merge
+
+on:
+  schedule:
+    - cron: '0 2 * * 0'  # Sunday 02:00 UTC
+  workflow_dispatch:
+    inputs:
+      auto_merge_cat_a:
+        description: 'Auto-merge Category A (no dispatch-site changes)?'
+        required: false
+        default: true
+        type: boolean
+      dry_run:
+        description: 'Dry run (analyze only, no merge/PR/issue)?'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  actions: write
+
+env:
+  UPSTREAM_REPO: ggml-org/llama.cpp
+  UPSTREAM_BRANCH: master
+  TARGET_BRANCH: tmac
+  # Files where T-MAC has dispatch sites — conflicts possible here
+  DISPATCH_SITE_FILES: >-
+    ggml/src/ggml-cuda/ggml-cuda.cu
+    ggml/src/ggml-cuda/mmvq.cu
+  # Our own workflows that must never be disabled
+  OUR_WORKFLOWS: upstream-merge.yml tmac-ci.yml release.yml
+
+jobs:
+  upstream-merge:
+    name: Check & Merge Upstream
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: tmac
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Fetch upstream
+        run: |
+          git remote add upstream "https://github.com/${UPSTREAM_REPO}.git" 2>/dev/null || true
+          git fetch upstream "${UPSTREAM_BRANCH}" --no-tags
+
+      - name: Analyze upstream changes
+        id: analyze
+        run: |
+          MERGE_BASE=$(git merge-base HEAD "upstream/${UPSTREAM_BRANCH}")
+          UPSTREAM_HEAD=$(git rev-parse "upstream/${UPSTREAM_BRANCH}")
+
+          if [ "$MERGE_BASE" = "$UPSTREAM_HEAD" ]; then
+            echo "status=up-to-date" >> "$GITHUB_OUTPUT"
+            echo "No new upstream commits."
+            exit 0
+          fi
+
+          COMMIT_COUNT=$(git rev-list --count "${MERGE_BASE}..${UPSTREAM_HEAD}")
+          echo "commit_count=${COMMIT_COUNT}" >> "$GITHUB_OUTPUT"
+          echo "merge_base=${MERGE_BASE:0:12}" >> "$GITHUB_OUTPUT"
+
+          # Changed files
+          CHANGED_FILES=$(git diff --name-only "${MERGE_BASE}..${UPSTREAM_HEAD}")
+
+          # Check dispatch-site files
+          DISPATCH_HIT=""
+          for ds_file in ${DISPATCH_SITE_FILES}; do
+            if echo "$CHANGED_FILES" | grep -qF "$ds_file"; then
+              DISPATCH_HIT="${DISPATCH_HIT} ${ds_file}"
+            fi
+          done
+          echo "dispatch_hit=${DISPATCH_HIT}" >> "$GITHUB_OUTPUT"
+
+          # Check workflow files
+          WORKFLOW_CHANGES=$(echo "$CHANGED_FILES" | grep '^\.github/workflows/' || true)
+          NEW_WORKFLOWS=""
+          if [ -n "$WORKFLOW_CHANGES" ]; then
+            while IFS= read -r wf; do
+              [ -z "$wf" ] && continue
+              if ! [ -f "$wf" ]; then
+                NEW_WORKFLOWS="${NEW_WORKFLOWS} $(basename "$wf")"
+              fi
+            done <<< "$WORKFLOW_CHANGES"
+          fi
+          echo "workflow_changes=${WORKFLOW_CHANGES}" >> "$GITHUB_OUTPUT"
+          echo "new_workflows=${NEW_WORKFLOWS}" >> "$GITHUB_OUTPUT"
+
+          # Try merge (dry run)
+          git merge --no-commit --no-ff "upstream/${UPSTREAM_BRANCH}" 2>/dev/null && \
+            MERGE_CLEAN=true || MERGE_CLEAN=false
+          git merge --abort 2>/dev/null || true
+
+          # Determine category
+          if [ "$MERGE_CLEAN" = "false" ]; then
+            CATEGORY="C"
+            REASON="Merge conflicts detected"
+          elif [ -n "$DISPATCH_HIT" ]; then
+            CATEGORY="B"
+            REASON="Dispatch-site files changed:${DISPATCH_HIT}"
+          else
+            CATEGORY="A"
+            REASON="No dispatch-site files affected, clean merge"
+          fi
+          echo "status=has-changes" >> "$GITHUB_OUTPUT"
+          echo "category=${CATEGORY}" >> "$GITHUB_OUTPUT"
+          echo "reason=${REASON}" >> "$GITHUB_OUTPUT"
+
+          # Directory summary
+          DIR_SUMMARY=$(echo "$CHANGED_FILES" | sed 's|/[^/]*$||' | sort -u | head -30)
+          {
+            echo "dir_summary<<DIREOF"
+            echo "$DIR_SUMMARY"
+            echo "DIREOF"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "Category ${CATEGORY}: ${REASON}"
+          echo "${COMMIT_COUNT} new commits"
+
+      - name: Build summary
+        if: steps.analyze.outputs.status == 'has-changes'
+        id: summary
+        env:
+          CAT: ${{ steps.analyze.outputs.category }}
+          COUNT: ${{ steps.analyze.outputs.commit_count }}
+          REASON: ${{ steps.analyze.outputs.reason }}
+          DISPATCH: ${{ steps.analyze.outputs.dispatch_hit }}
+          WF_CHANGES: ${{ steps.analyze.outputs.workflow_changes }}
+          NEW_WF: ${{ steps.analyze.outputs.new_workflows }}
+          DIRS: ${{ steps.analyze.outputs.dir_summary }}
+          BASE: ${{ steps.analyze.outputs.merge_base }}
+        run: |
+          cat > /tmp/summary.md <<SUMEOF
+          ## Upstream Merge Analysis
+
+          **Category ${CAT}** — ${REASON}
+
+          ### Stats
+          - **${COUNT} new commits** from \`${UPSTREAM_REPO}\`
+          - Merge base: \`${BASE}\`
+
+          ### Changed directories
+          \`\`\`
+          ${DIRS}
+          \`\`\`
+
+          ### Dispatch-site files
+          SUMEOF
+
+          if [ -n "$DISPATCH" ]; then
+            cat >> /tmp/summary.md <<DISPEOF
+          **AFFECTED:**\`${DISPATCH}\`
+          Review T-MAC integration at marked dispatch sites (\`// ── T-MAC dispatch site N/6 ──\`).
+          DISPEOF
+          else
+            echo "Not affected." >> /tmp/summary.md
+          fi
+
+          if [ -n "$WF_CHANGES" ]; then
+            cat >> /tmp/summary.md <<WFEOF
+
+          ### Workflow file changes
+          \`\`\`
+          ${WF_CHANGES}
+          \`\`\`
+          WFEOF
+            if [ -n "$NEW_WF" ]; then
+              echo "**New workflows detected:**\`${NEW_WF}\` — will be auto-disabled after merge." >> /tmp/summary.md
+            fi
+          fi
+
+          echo "body_file=/tmp/summary.md" >> "$GITHUB_OUTPUT"
+
+      # ── Disable new upstream workflows (shared helper) ────────────────
+      - name: Disable non-kuzco workflows
+        if: |
+          steps.analyze.outputs.status == 'has-changes' &&
+          steps.analyze.outputs.new_workflows != '' &&
+          inputs.dry_run != true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Scanning for upstream workflows to disable..."
+          gh api "repos/${GITHUB_REPOSITORY}/actions/workflows" --paginate \
+            -q '.workflows[] | "\(.id) \(.path) \(.state)"' | \
+          while read -r wf_id wf_path wf_state; do
+            wf_name=$(basename "$wf_path")
+            IS_OURS=false
+            for ours in ${OUR_WORKFLOWS}; do
+              [ "$wf_name" = "$ours" ] && IS_OURS=true
+            done
+            if [ "$IS_OURS" = "false" ] && [ "$wf_state" = "active" ]; then
+              echo "Disabling: ${wf_name} (id: ${wf_id})"
+              gh api -X PUT "repos/${GITHUB_REPOSITORY}/actions/workflows/${wf_id}/disable"
+            fi
+          done
+
+      # ── Category A: Auto-merge ────────────────────────────────────────
+      - name: "Cat A: Merge and push"
+        if: |
+          steps.analyze.outputs.status == 'has-changes' &&
+          steps.analyze.outputs.category == 'A' &&
+          inputs.dry_run != true &&
+          (inputs.auto_merge_cat_a == true || github.event_name == 'schedule')
+        env:
+          COUNT: ${{ steps.analyze.outputs.commit_count }}
+        run: |
+          git merge --no-edit "upstream/${UPSTREAM_BRANCH}" \
+            -m "Merge upstream llama.cpp (${COUNT} commits)
+
+          Category A: no dispatch-site files affected.
+          Upstream: ${UPSTREAM_REPO}/${UPSTREAM_BRANCH}"
+          git push origin "${TARGET_BRANCH}"
+
+      # ── Category B: PR (dispatch-site changes, no conflict) ───────────
+      - name: "Cat B: Create merge branch and PR"
+        if: |
+          steps.analyze.outputs.status == 'has-changes' &&
+          steps.analyze.outputs.category == 'B' &&
+          inputs.dry_run != true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COUNT: ${{ steps.analyze.outputs.commit_count }}
+          DISPATCH: ${{ steps.analyze.outputs.dispatch_hit }}
+          BODY_FILE: ${{ steps.summary.outputs.body_file }}
+        run: |
+          BRANCH="upstream-merge/$(date +%Y%m%d)"
+          git checkout -b "$BRANCH"
+          git merge --no-edit "upstream/${UPSTREAM_BRANCH}" \
+            -m "Merge upstream llama.cpp (${COUNT} commits)
+
+          Category B: dispatch-site files changed — review needed.
+          Affected:${DISPATCH}
+          Upstream: ${UPSTREAM_REPO}/${UPSTREAM_BRANCH}"
+          git push -u origin "$BRANCH"
+
+          gh pr create \
+            --base "${TARGET_BRANCH}" \
+            --head "$BRANCH" \
+            --title "Upstream merge: ${COUNT} commits (dispatch-site review needed)" \
+            --body-file "$BODY_FILE" \
+            --label "upstream-merge"
+
+      # ── Category C: Issue (conflict) ──────────────────────────────────
+      - name: "Cat C: Create conflict issue"
+        if: |
+          steps.analyze.outputs.status == 'has-changes' &&
+          steps.analyze.outputs.category == 'C' &&
+          inputs.dry_run != true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COUNT: ${{ steps.analyze.outputs.commit_count }}
+          BODY_FILE: ${{ steps.summary.outputs.body_file }}
+        run: |
+          # Get conflict file list
+          git merge --no-commit --no-ff "upstream/${UPSTREAM_BRANCH}" 2>/dev/null || true
+          CONFLICTS=$(git diff --name-only --diff-filter=U 2>/dev/null || echo "(could not determine)")
+          git merge --abort 2>/dev/null || true
+
+          # Append conflict details to summary
+          cat >> "$BODY_FILE" <<CEOF
+
+          ### Conflicting files
+          \`\`\`
+          ${CONFLICTS}
+          \`\`\`
+
+          ### Resolution
+          \`\`\`bash
+          git fetch upstream master
+          git merge upstream/master
+          # Resolve conflicts, then:
+          git add -A && git commit
+          \`\`\`
+          CEOF
+
+          gh issue create \
+            --title "Upstream merge conflict: ${COUNT} commits" \
+            --body-file "$BODY_FILE" \
+            --label "upstream-conflict"
+
+      # ── Dry run / up-to-date ──────────────────────────────────────────
+      - name: "Dry run: print summary"
+        if: inputs.dry_run == true && steps.analyze.outputs.status == 'has-changes'
+        env:
+          BODY_FILE: ${{ steps.summary.outputs.body_file }}
+        run: cat "$BODY_FILE"
+
+      - name: "Up to date"
+        if: steps.analyze.outputs.status == 'up-to-date'
+        run: echo "Already up to date with upstream."
