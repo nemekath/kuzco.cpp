@@ -16,6 +16,8 @@ set -euo pipefail
 TAG="${TAG:-$(git describe --tags --always 2>/dev/null || echo "dev")}"
 MODEL_DIR="${MODEL_DIR:-/models}"
 OUT_DIR="${OUT_DIR:-/out}"
+# Resolve to absolute path before we cd into build dir
+[[ "$OUT_DIR" != /* ]] && OUT_DIR="$(pwd)/$OUT_DIR"
 SMOKE_MODEL="${SMOKE_MODEL:-Llama-3.2-1B-Instruct-Q4_0.gguf}"
 SKIP_TESTS="${SKIP_TESTS:-0}"
 DRY_RUN="${DRY_RUN:-0}"
@@ -79,19 +81,21 @@ else
     [ -f "$SMOKE" ] || err "Smoke model not found: ${SMOKE}"
 
     log "Smoke test 1/4: math coherence"
-    echo "" | ./bin/llama-completion -m "$SMOKE" -p "What is 2+2? Answer with just the number:" \
-        -n 10 -ngl 99 2>/dev/null | grep -q "4" \
-        || err "Math coherence test failed"
+    MATH_OUT=$(echo "" | ./bin/llama-completion -m "$SMOKE" \
+        -p "What is 2+2? Answer with just the number:" \
+        -n 10 -ngl 99 2>/dev/null || true)
+    echo "$MATH_OUT" | grep -q "4" || err "Math coherence test failed"
 
     log "Smoke test 2/4: text generation"
-    OUTPUT=$(echo "" | ./bin/llama-completion -m "$SMOKE" -p "The capital of France is" \
-        -n 20 -ngl 99 2>/dev/null)
-    [ -n "$OUTPUT" ] || err "Text generation produced no output"
+    TEXT_OUT=$(echo "" | ./bin/llama-completion -m "$SMOKE" \
+        -p "The capital of France is" \
+        -n 20 -ngl 99 2>/dev/null || true)
+    [ -n "$TEXT_OUT" ] || err "Text generation produced no output"
 
     log "Smoke test 3/4: T-MAC activation"
-    TMAC_LOG=$(echo "" | ./bin/llama-completion -m "$SMOKE" -p "Hello" \
-        -n 5 -ngl 99 2>&1 | grep -i "tmac" || true)
-    if [ -n "$TMAC_LOG" ]; then
+    TMAC_LOG=$(echo "" | ./bin/llama-completion -m "$SMOKE" \
+        -p "Hello" -n 5 -ngl 99 2>&1 || true)
+    if echo "$TMAC_LOG" | grep -qi "tmac"; then
         log "T-MAC detected in output"
     else
         log "T-MAC not detected (may be normal if model type not supported)"
