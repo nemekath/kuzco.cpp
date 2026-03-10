@@ -170,7 +170,7 @@ a.out.*
 /data/benchmarks/*.db-shm
 
 # Experimental benchmark scratch data
-/bench-panel-gaps-*.csv
+/bench-fill-gaps-*.csv
 /model-zoo-*.csv
 
 # Prebuilt binary artifacts

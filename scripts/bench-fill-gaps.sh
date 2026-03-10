@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# bench-panel-gaps.sh — Fill benchmark gaps identified by review process.
+# bench-fill-gaps.sh — Fill benchmark gaps identified by review process.
 #
-# Usage: scripts/bench-panel-gaps.sh [--section NAME] [--all]
+# Usage: scripts/bench-fill-gaps.sh [--section NAME] [--all]
 # Sections: iq-absolute, seq-length, deepseek-upgrade, iq-8b, power, deepseek-671b
 #
 # Requirements:
@@ -20,7 +20,7 @@ export HIP_VISIBLE_DEVICES="${HIP_VISIBLE_DEVICES:-0}"
 # ─── Defaults ───────────────────────────────────────────────────────────
 BENCH="${BENCH:-./build/bin/llama-bench}"
 TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-CSV_FILE="bench-panel-gaps-${TIMESTAMP}.csv"
+CSV_FILE="bench-fill-gaps-${TIMESTAMP}.csv"
 SECTION=""
 RUN_ALL=0
 
@@ -33,7 +33,7 @@ while [[ $# -gt 0 ]]; do
         --bench)   BENCH="$2"; shift 2 ;;
         --help|-h)
             cat <<'USAGE'
-Usage: scripts/bench-panel-gaps.sh [OPTIONS]
+Usage: scripts/bench-fill-gaps.sh [OPTIONS]
 
 Fill benchmark gaps identified by benchmark review for public documentation.
 
@@ -58,8 +58,8 @@ Environment:
   BENCH            Override llama-bench path.
 
 Examples:
-  MODEL_DIR=/home/benjamin/llama-tmac-real scripts/bench-panel-gaps.sh --section iq-absolute
-  MODEL_DIR=/home/benjamin/llama-tmac-real scripts/bench-panel-gaps.sh --all
+  MODEL_DIR=/home/benjamin/llama-tmac-real scripts/bench-fill-gaps.sh --section iq-absolute
+  MODEL_DIR=/home/benjamin/llama-tmac-real scripts/bench-fill-gaps.sh --all
 USAGE
             exit 0 ;;
         *)  echo "Unknown option: $1 (try --help)"; exit 1 ;;
@@ -69,7 +69,7 @@ done
 # ─── Validation ─────────────────────────────────────────────────────────
 if [[ -z "${MODEL_DIR:-}" ]]; then
     echo "ERROR: MODEL_DIR environment variable is required."
-    echo "Usage: MODEL_DIR=/path/to/models scripts/bench-panel-gaps.sh --section iq-absolute"
+    echo "Usage: MODEL_DIR=/path/to/models scripts/bench-fill-gaps.sh --section iq-absolute"
     exit 1
 fi
 
