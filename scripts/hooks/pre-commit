@@ -33,12 +33,17 @@ RULES=(
   '/mnt/llm-data|Local path leak (model storage)'
   '/mnt/games|Local path leak (overflow storage)'
   'llama-tmac-real|Local path leak (symlink directory)'
+  'sk-[a-zA-Z0-9]{20,}|Secret leak (API key)'
+  'ghp_[a-zA-Z0-9]{36}|Secret leak (GitHub PAT)'
+  'github_pat_[a-zA-Z0-9_]{80,}|Secret leak (GitHub fine-grained PAT)'
+  'hf_[a-zA-Z0-9]{34}|Secret leak (HuggingFace token)'
+  'AKIA[0-9A-Z]{16}|Secret leak (AWS access key)'
 )
 
 # ── Files to skip ──────────────────────────────────────────────────────
 # CLAUDE.md and AGENTS.md are gitignored but check anyway; backup.sh
 # legitimately references .serena paths for operational backup.
-EXCLUDE_FILES="CLAUDE.md|AGENTS.md|scripts/backup.sh|scripts/hooks/pre-commit"
+EXCLUDE_FILES="CLAUDE.md|AGENTS.md|scripts/backup.sh|scripts/hooks/pre-commit|scripts/scan-pii.sh"
 
 ERRORS=0
 

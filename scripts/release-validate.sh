@@ -122,6 +122,17 @@ echo ""
 if should_run 1; then
     phase_header 1 "Structural Integrity" "5s"
 
+    # PII/path leak scan
+    if scripts/scan-pii.sh > "$RESULTS_DIR/phase1-pii.txt" 2>&1; then
+        ok "No PII, local paths, or secrets in tracked files"
+    else
+        fail "PII/path leak detected — see $RESULTS_DIR/phase1-pii.txt"
+        cat "$RESULTS_DIR/phase1-pii.txt"
+        PHASE_RESULTS+=("Phase 1: FAIL")
+        printf "${RED}Phase 1 FAILED — fix PII leaks before releasing.${NC}\n"
+        exit 1
+    fi
+
     if scripts/check-dispatch-sites.sh > "$RESULTS_DIR/phase1-dispatch.txt" 2>&1; then
         ok "All 6 dispatch sites intact"
         cat "$RESULTS_DIR/phase1-dispatch.txt" | grep -E '\[OK\]' | sed 's/^/    /'
