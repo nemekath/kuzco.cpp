@@ -25,7 +25,7 @@ BENCH="./build/bin/llama-bench"
 COMPLETION="./build/bin/llama-completion"
 PERPLEXITY="./build/bin/llama-perplexity"
 SMOKE_MODEL="models/1B-Q4_K_M.gguf"
-WIKITEXT="/mnt/truenas-llm-models/wikitext-2-raw/wiki.test.raw"
+WIKITEXT="${WIKITEXT:?Set WIKITEXT to path to wiki.test.raw (see scripts/get-wikitext-2.sh)}"
 RESULTS_DIR="release-validation-$(date +%Y%m%d-%H%M%S)"
 
 # Perplexity test models — covers stock (Q4_0), K-quant (Q4_K_M), IQ (IQ3_S)

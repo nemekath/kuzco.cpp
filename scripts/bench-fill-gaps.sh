@@ -58,8 +58,8 @@ Environment:
   BENCH            Override llama-bench path.
 
 Examples:
-  MODEL_DIR=/home/benjamin/llama-tmac-real scripts/bench-fill-gaps.sh --section iq-absolute
-  MODEL_DIR=/home/benjamin/llama-tmac-real scripts/bench-fill-gaps.sh --all
+  MODEL_DIR=/path/to/models scripts/bench-fill-gaps.sh --section iq-absolute
+  MODEL_DIR=/path/to/models scripts/bench-fill-gaps.sh --all
 USAGE
             exit 0 ;;
         *)  echo "Unknown option: $1 (try --help)"; exit 1 ;;

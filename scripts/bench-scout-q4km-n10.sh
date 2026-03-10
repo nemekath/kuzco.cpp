@@ -4,9 +4,10 @@
 # Dual GPU with CPU offload (-ngl 36), --mmap 1 for large model
 set -euo pipefail
 
-MODEL="/home/benjamin/llama-tmac-real/Llama-4-Scout-17B-16E-Instruct-Q4_K_M-00001-of-00002.gguf"
-BENCH="/home/benjamin/llama-tmac-master/build/bin/llama-bench"
-OUTCSV="/home/benjamin/llama-tmac-master/data/benchmarks/scout-q4km-n10-rerun.csv"
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+MODEL="${KUZCO_MODEL_DIR:?Set KUZCO_MODEL_DIR}/Llama-4-Scout-17B-16E-Instruct-Q4_K_M-00001-of-00002.gguf"
+BENCH="${BENCH:-$REPO_ROOT/build/bin/llama-bench}"
+OUTCSV="$REPO_ROOT/data/benchmarks/scout-q4km-n10-rerun.csv"
 NGL=36
 TOTAL_RUNS=12  # 2 warmup + 10 measured
 

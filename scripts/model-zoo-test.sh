@@ -46,7 +46,7 @@ BUILD_DIR="./build/bin"
 BENCH="${BENCH:-$BUILD_DIR/llama-bench}"
 COMPLETION="${COMPLETION:-$BUILD_DIR/llama-completion}"
 PERPLEXITY="${PERPLEXITY:-$BUILD_DIR/llama-perplexity}"
-WIKITEXT="${WIKITEXT:-/mnt/llm-data/wikitext-2-raw/wiki.test.raw}"
+WIKITEXT="${WIKITEXT:?Set WIKITEXT to path to wiki.test.raw (see scripts/get-wikitext-2.sh)}"
 
 # VRAM threshold for auto dual-GPU detection (bytes)
 DUAL_GPU_THRESHOLD=$((23 * 1024 * 1024 * 1024))  # 23 GB
@@ -402,7 +402,7 @@ tier3_perplexity() {
 
     if [[ ! -f "$WIKITEXT" ]]; then
         fail "Wikitext-2 corpus not found: $WIKITEXT"
-        warn "Run: cp -r /tmp/wikitext-2/wikitext-2-raw /mnt/llm-data/wikitext-2-raw/"
+        warn "Download with: scripts/get-wikitext-2.sh, then set WIKITEXT=/path/to/wiki.test.raw"
         RESULTS[T3]="SKIP"
         return 1
     fi

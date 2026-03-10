@@ -19,7 +19,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 IMAGE_NAME="kuzco-rocm72-test"
 CONTAINER_NAME="kuzco-rocm72"
-MODEL_DIR="${KUZCO_MODEL_DIR:-/home/benjamin/llama-tmac-real}"
+MODEL_DIR="${KUZCO_MODEL_DIR:?Set KUZCO_MODEL_DIR to your model directory}"
 CMD="${1:-shell}"
 
 # Build image if it doesn't exist.
@@ -56,7 +56,7 @@ if ! docker inspect -f '{{.State.Running}}' "$CONTAINER_NAME" 2>/dev/null | grep
         -v "$SCRIPT_DIR:/src:ro" \
         -v "$MODEL_DIR:/models:ro" \
         -v "$MODEL_DIR:$MODEL_DIR:ro" \
-        -v "/mnt/llm-data:/mnt/llm-data:ro" \
+        ${KUZCO_STORAGE_DIR:+-v "$KUZCO_STORAGE_DIR:$KUZCO_STORAGE_DIR:ro"} \
         -e HIP_VISIBLE_DEVICES=0 \
         --entrypoint sleep \
         "$IMAGE_NAME" \

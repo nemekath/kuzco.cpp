@@ -28,6 +28,11 @@ RULES=(
   '\.serena/memories|Serena memory path disclosure'
   'serena.*memor|Serena memory reference'
   'workflow-expert-panel|Internal memory name'
+  '/home/benjamin|Local path leak (home directory)'
+  '/mnt/truenas|Local path leak (NFS mount)'
+  '/mnt/llm-data|Local path leak (model storage)'
+  '/mnt/games|Local path leak (overflow storage)'
+  'llama-tmac-real|Local path leak (symlink directory)'
 )
 
 # ── Files to skip ──────────────────────────────────────────────────────

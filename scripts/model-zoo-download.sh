@@ -18,9 +18,9 @@
 set -euo pipefail
 
 # ─── Configuration ──────────────────────────────────────────────────────
-MODEL_DIR="/home/benjamin/llama-tmac-real"            # Symlink directory
-PRIMARY_DIR="/mnt/llm-data/models"                    # Primary storage
-OVERFLOW_DIR="/mnt/games/kuzco-models"                # Overflow for large models
+MODEL_DIR="${KUZCO_MODEL_DIR:?Set KUZCO_MODEL_DIR to your model symlink directory}"
+PRIMARY_DIR="${KUZCO_STORAGE_DIR:?Set KUZCO_STORAGE_DIR to your primary model storage}"
+OVERFLOW_DIR="${KUZCO_OVERFLOW_DIR:-$PRIMARY_DIR}"     # Overflow for large models
 OVERFLOW_THRESHOLD=$((40 * 1024 * 1024 * 1024))       # 40 GB → use overflow
 
 # ─── Argument parsing ──────────────────────────────────────────────────

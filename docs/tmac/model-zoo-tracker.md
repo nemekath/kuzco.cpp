@@ -153,7 +153,7 @@ p-values in `benchmarks.md`. They are not duplicated here.
 | 4 | Qwen2.5 72B | 72B | Dense | Q4_K_M | 47 GB | games | OK | OK | OK | OK | OK | 4.5590 | 4.5590 | **+10.5%** [~10.0, ~11.0]† N=5 |
 | 5 | Llama 4 Scout (Q4_K_M) | 109B/17B | ISWA-MoE | Q4_K_M | 65 GB | games | OK | OK | OK | OK | OK | 9.1006 | 9.1006 | **Parity** (+2.5% [-9.4, +14.4] NS‡) N=10 |
 
-**Wave 3 total new:** ~240 GB (overflow to /mnt/games/)
+**Wave 3 total new:** ~240 GB (overflow storage)
 
 ---
 
@@ -176,15 +176,15 @@ p-values in `benchmarks.md`. They are not duplicated here.
 
 | Mount | Total | Used | Free | Allocated |
 |-------|------:|-----:|-----:|----------:|
-| `/mnt/llm-data/` (NVMe) | 916 GB | 669 GB | 201 GB | Wave 1 + Wave 2 (~180 GB) |
-| `/mnt/games/` (NVMe) | 2.8 TB | 2.6 TB | 220 GB | Wave 3 (~170 GB) + Wave 4 |
-| `/home/` (SATA) | 915 GB | 714 GB | 155 GB | Symlinks only |
+| Primary storage (NVMe) | 916 GB | 669 GB | 201 GB | Wave 1 + Wave 2 (~180 GB) |
+| Overflow storage (NVMe) | 2.8 TB | 2.6 TB | 220 GB | Wave 3 (~170 GB) + Wave 4 |
+| Home directory (SATA) | 915 GB | 714 GB | 155 GB | Symlinks only |
 
 ## Notes
 
-- Wikitext-2 test corpus: `/mnt/llm-data/wikitext-2-raw/wiki.test.raw`
-- Model symlinks: `/home/benjamin/llama-tmac-real/` → actual storage location
-- Overflow models (>40 GB): `/mnt/games/kuzco-models/`
+- Wikitext-2 test corpus: set via `WIKITEXT` env var (download: `scripts/get-wikitext-2.sh`)
+- Model symlinks: `$KUZCO_MODEL_DIR` → actual storage location
+- Overflow models (>40 GB): `$KUZCO_OVERFLOW_DIR` (defaults to primary storage)
 - All PPL deltas must be < 0.1 (bit-identical validation)
 - † **Approximate 95% CI:** Estimated from system variance characterization (paired speedup SD = 0.28–0.49% across 6 N=10 models). Conservative upper bound SD=0.4%, t_crit(df=4)=2.776 → half-width ≈ ±0.5pp. Exact CIs (no marker) computed from raw per-run CSV data
 - § Qwen3-72B PPL=8975.7: instruct-tuned model/wikitext-2 incompatibility (stock identical). Same family as Qwen3-32B NaN@38
@@ -195,5 +195,5 @@ p-values in `benchmarks.md`. They are not duplicated here.
 - Scout Q4_K_M split into 2 shards: symlinks must use original shard names, not custom name
 - Scout T3 perplexity: ~75 min per run at `-b 128 -ngl 36` (CPU offload slows batch processing)
 - Maverick 128E T4: `llama-bench` defaults `--mmap 0` → 127 GB malloc → OOM crash. **Must use `--mmap 1`**
-- Maverick 128E: `/mnt/games/` NTFS partition may need `sudo mount -o ro /mnt/games` if dirty flag set
+- Maverick 128E: NTFS overflow partition may need `sudo mount -o ro` if dirty flag set from Windows
 - Maverick 128E: -0.4% [-1.7, +0.9] NS (p=0.47) — only 13 GPU layers, T-MAC coverage ~6%. Same as Scout Q4_K_M pattern

@@ -5,5 +5,8 @@
 # Returns immediately — backup runs detached in background.
 
 REPO_ROOT="$(git rev-parse --show-toplevel)"
-export BACKUP_DIR="${BACKUP_DIR:-/mnt/truenas-backup/kuzco-cpp}"
+if [[ -z "${BACKUP_DIR:-}" ]]; then
+    exit 0  # No backup dir configured, skip
+fi
+export BACKUP_DIR
 nohup "${REPO_ROOT}/scripts/backup.sh" --hook >/dev/null 2>&1 &

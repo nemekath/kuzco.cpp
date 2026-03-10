@@ -135,8 +135,7 @@ Then `./rocm72-test.sh destroy` and re-run. The host stays untouched.
 - **Persistent container** — survives between `build` and `bench`/`smoke`/`regression`
 - **Numeric GID for /dev/kfd** — `--group-add $(stat -c '%g' /dev/kfd)` avoids
   container/host group name mismatch (container render=GID 109, host=GID 991)
-- **Symlink chain** — models dir + llama-tmac-real + /mnt/llm-data all mounted to
-  resolve the two-level symlink chain from `models/*.gguf`
+- **Symlink chain** — model dir + storage dir both mounted to resolve symlink chains
 
 ---
 
@@ -145,7 +144,7 @@ Then `./rocm72-test.sh destroy` and re-run. The host stays untouched.
 **Upgrade to ROCm 7.2 on the host.** Post-upgrade, run the standard regression:
 
 ```bash
-cd ~/llama-tmac-master/build
+cd build
 cmake .. -DGGML_HIP=ON -DAMDGPU_TARGETS=gfx1100 -DGGML_HIP_TMAC=ON
 make -j16
 HIP_VISIBLE_DEVICES=0 scripts/tmac-regression.sh --quick

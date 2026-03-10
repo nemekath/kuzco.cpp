@@ -23,7 +23,7 @@ USER ubuntu
 WORKDIR /build
 
 # Source and models are bind-mounted at runtime (read-only)
-# /src  -> llama-tmac-master (ro)
+# /src  -> repo root (ro)
 # /models -> gguf models (ro)
 
 COPY --chown=ubuntu:ubuntu rocm72-entrypoint.sh /usr/local/bin/entrypoint.sh
