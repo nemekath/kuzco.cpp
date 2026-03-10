@@ -1,5 +1,6 @@
 #include "mmvq.cuh"
 #include "quantize.cuh"
+#include "tmac.cuh"
 #include "unary.cuh"
 #include "vecdotq.cuh"
 
@@ -684,6 +685,63 @@ void ggml_cuda_mul_mat_vec_q(
             fusion_local.gate_bias = fusion->gate_bias->data;
         }
         fusion_local.glu_op = fusion->glu_op;
+    }
+
+    // ── T-MAC dispatch site 4/6: Fused SwiGLU (non-split + MoE) ──
+    // Handles fused MUL_MAT+GLU for single-token generation with F32 activations.
+    // Supports both non-MoE (!ids) and MoE (ids) expert dispatch.
+    // FFN-only: ne2 is always 1 for fused SwiGLU ops (attention has no GLU fusion).
+    //
+    // Aliasing guard: the graph memory allocator may reuse src1's buffer for dst
+    // (src1_d == dst_d). Stock MMVQ is immune because Q8_1 quantization creates a
+    // separate copy before the GEMV kernel reads it. T-MAC reads src1 directly as
+    // F32, so if dst == src1, kernel output writes corrupt the input while other
+    // warps still read it — a read-write race condition. When aliased, we copy src1
+    // to a pool-allocated F32 temp buffer (ne00 * 4 bytes, sub-microsecond D2D copy)
+    // to break the alias while preserving T-MAC's throughput advantage. This is much
+    // cheaper than falling through to stock MMVQ which pays the full Q8_1 quantization
+    // cost. Aliasing primarily affects Llama 4 Scout (most layers aliased).
+    // NOTE: assumes whole-tensor aliasing (pointer identity), not partial range overlap.
+    // Pool locality: Site 4 is the non-split path (multi-GPU row-split uses Site 5 which
+    // has its own copy-broadcast pattern). ctx.pool() is always device-local here because
+    // single-GPU dispatch guarantees src1_d, dst_d, and pool are on the same device.
+    if (ggml_cuda_tmac_can_dispatch(src0->type, ne00)
+            && ne11 == 1 && ne2 == 1 && fusion && fusion->gate) {
+
+        // Break src1/dst aliasing via pool-allocated F32 copy when needed
+        const float * src1_for_tmac = src1_d;
+        ggml_cuda_pool_alloc<float> src1_alias_copy;
+        if (src1_d == dst_d) {
+            src1_alias_copy.alloc(ctx.pool(), ne00);
+            CUDA_CHECK(cudaMemcpyAsync(src1_alias_copy.get(), src1_d,
+                ne00 * sizeof(float), cudaMemcpyDeviceToDevice, stream));
+            src1_for_tmac = src1_alias_copy.get();
+            tmac_count_alias_copy();
+        }
+
+        const int32_t * moe_ids     = ids ? (const int32_t *)ids->data : nullptr;
+        const int64_t   moe_stride  = ids ? src0->nb[2] : 0;
+        const int        moe_n_used = ids ? (int)ids->ne[0] : 1;
+
+        tmac_dispatch_fused(ctx, src0->type,
+            src0->data, fusion->gate->data,
+            src1_for_tmac, dst_d,
+            ne00, ne01,
+            fusion->glu_op, stream,
+            moe_ids, moe_stride, moe_n_used);
+        if (ids) tmac_count_expert_hit(ne00 * ne01 * 2);  // fused: UP + GATE = 2x
+        return;
+    }
+
+    // Active Ratio: count ALL fused GLU quantized GEMV ops going through stock path
+    if (ggml_cuda_tmac_enabled() && ne11 == 1 && fusion && fusion->gate) {
+        if (ids && ggml_cuda_tmac_is_supported_type(src0->type)) {
+            tmac_warn_expert_fallback(src0->type, ne00);
+        }
+        tmac_count_miss(ne01 * ne00 * 2);  // fused: UP + GATE = 2x element count
+        if (ids) tmac_count_expert_miss(ne01 * ne00 * 2);
+        tmac_log_miss(src0->type, ne00, "site4-fused");
+        tmac_register_atexit_report();
     }
 
     // If src0 is a temporary compute buffer, clear any potential padding.

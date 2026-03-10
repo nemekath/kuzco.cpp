@@ -1,0 +1,12 @@
+# model=phi-4-mini-3.8B-Q4_K_M,date=2026-03-02T22:16:58+01:00,rocm=7.1.1,gpu=Radeon RX 7900 XTX,commit=5b9abcc7b,gpu_mode=single
+tier,model,metric,run,variant,value,unit
+T4,phi-4-mini-3.8B-Q4_K_M,tg128,1,tmac,167.995567,t/s
+T4,phi-4-mini-3.8B-Q4_K_M,tg128,1,stock,150.963142,t/s
+T4,phi-4-mini-3.8B-Q4_K_M,tg128,2,tmac,167.933471,t/s
+T4,phi-4-mini-3.8B-Q4_K_M,tg128,2,stock,151.012699,t/s
+T4,phi-4-mini-3.8B-Q4_K_M,tg128,3,tmac,166.728794,t/s
+T4,phi-4-mini-3.8B-Q4_K_M,tg128,3,stock,149.470924,t/s
+T4,phi-4-mini-3.8B-Q4_K_M,tg128,4,tmac,167.453658,t/s
+T4,phi-4-mini-3.8B-Q4_K_M,tg128,4,stock,150.240285,t/s
+T4,phi-4-mini-3.8B-Q4_K_M,tg128,5,tmac,166.557815,t/s
+T4,phi-4-mini-3.8B-Q4_K_M,tg128,5,stock,150.272286,t/s

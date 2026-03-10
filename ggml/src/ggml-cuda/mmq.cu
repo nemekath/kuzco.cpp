@@ -1,9 +1,10 @@
 #include "common.cuh"
 #include "mmq.cuh"
+#include "tmac.cuh"
 #include "quantize.cuh"
 #include "mmid.cuh"
 
-static void ggml_cuda_mul_mat_q_switch_type(ggml_backend_cuda_context & ctx, const mmq_args & args, cudaStream_t stream) {
+static void ggml_cuda_mul_mat_q_switch_type(ggml_backend_cuda_context & ctx, const mmq_args & args, const float * src1_ddf_i, cudaStream_t stream) {
     switch (args.type_x) {
         case GGML_TYPE_Q4_0:
             mul_mat_q_case<GGML_TYPE_Q4_0>(ctx, args, stream);
@@ -153,7 +154,7 @@ void ggml_cuda_mul_mat_q(
             ne02, ne12, s02, s12, s2,
             ne03, ne13, s03, s13, s3,
             use_stream_k, ne1};
-        ggml_cuda_mul_mat_q_switch_type(ctx, args, stream);
+        ggml_cuda_mul_mat_q_switch_type(ctx, args, src1_d, stream);
         return;
     }
 
@@ -214,7 +215,7 @@ void ggml_cuda_mul_mat_q(
         ne03, ne13, s03, s13, s3,
         use_stream_k, ne12};
 
-    ggml_cuda_mul_mat_q_switch_type(ctx, args, stream);
+    ggml_cuda_mul_mat_q_switch_type(ctx, args, nullptr, stream);
 }
 
 void ggml_cuda_op_mul_mat_q(
@@ -254,9 +255,9 @@ void ggml_cuda_op_mul_mat_q(
         1, 1, 0, 0, 0,
         use_stream_k, src1_ncols};
 
-    ggml_cuda_mul_mat_q_switch_type(ctx, args, stream);
+    ggml_cuda_mul_mat_q_switch_type(ctx, args, src1_ddf_i, stream);
 
-    GGML_UNUSED_VARS(src1, dst, src1_ddf_i, src1_padded_row_size);
+    GGML_UNUSED_VARS(src1, dst, src1_padded_row_size);
 }
 
 bool ggml_cuda_should_use_mmq(enum ggml_type type, int cc, int64_t ne11, int64_t n_experts) {

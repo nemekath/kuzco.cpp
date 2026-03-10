@@ -138,3 +138,43 @@ poetry.toml
 /.windsurf/
 # emscripten
 a.out.*
+
+# T-MAC fork artifacts
+/.serena/
+/.gemini/
+/.claude/
+/staging/
+*.tar.gz
+/bandwidth_test
+/bandwidth_test.cu
+/panel*-gemini-brief.md
+/panel*-brief.md
+/results.*
+/results/
+/tmac-regression-*.csv
+
+# T-MAC internal development docs (kept locally, not published)
+/CLAUDE.md
+/AGENTS.md
+/docs/tmac/CLAUDE-v1-full.md
+/docs/tmac/optimization-history.md
+/docs/tmac/rejected-experiments.md
+/docs/tmac/panel-history.md
+/docs/tmac/panel53-*.md
+/docs/tmac/panel54-*.md
+/docs/tmac/p17-hw-counters.md
+
+# Benchmark database (reproducible from tracked CSVs)
+/data/benchmarks/*.db
+/data/benchmarks/*.db-wal
+/data/benchmarks/*.db-shm
+
+# Experimental benchmark scratch data
+/bench-panel-gaps-*.csv
+/model-zoo-*.csv
+
+# Prebuilt binary artifacts
+kuzco.cpp-v*/
+
+# GitHub preview mockups
+/github-*.png
