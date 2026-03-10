@@ -93,7 +93,11 @@ jobs:
               fi
             done <<< "$WORKFLOW_CHANGES"
           fi
-          echo "workflow_changes=${WORKFLOW_CHANGES}" >> "$GITHUB_OUTPUT"
+          {
+            echo "workflow_changes<<WFEOF"
+            echo "$WORKFLOW_CHANGES"
+            echo "WFEOF"
+          } >> "$GITHUB_OUTPUT"
           echo "new_workflows=${NEW_WORKFLOWS}" >> "$GITHUB_OUTPUT"
 
           # Try merge (dry run)
