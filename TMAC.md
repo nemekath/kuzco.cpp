@@ -180,9 +180,11 @@ It is complementary to:
 
 ## Fork Maintenance
 
-This is an independent fork rebased monthly against upstream llama.cpp.
-**Last rebased:** 2026-02-24 (upstream `47eb12b95`). Dispatch sites
-are marked with `// ── T-MAC dispatch site N/6 ──` for easy re-integration after rebase.
+This is a [GitHub fork](https://github.com/nemekath/kuzco.cpp) of
+[ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp), rebased
+periodically against upstream. **Current base:** `47eb12b95` (2026-02-24).
+Dispatch sites are marked with `// ── T-MAC dispatch site N/6 ──` for
+easy conflict resolution during rebase.
 
 ## License
 

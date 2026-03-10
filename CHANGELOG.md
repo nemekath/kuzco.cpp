@@ -1,7 +1,6 @@
 # Changelog
 
-> Versions v1.0–v1.6 were internal pre-releases with no binary artifacts.
-> v1.0.0 is the first public release with prebuilt binaries.
+> Versions v1.0–v1.6 were development milestones prior to the public fork migration.
 
 ## Unreleased — Qwen3.5 + ROCm 7.2 Validation
 
@@ -18,7 +17,7 @@
 - Scout Q4_K_M reframed from +2.6% to "Parity" (CPU offload variance too high)
 - 30+ models across 13 architecture families (was 26)
 
-## v1.6 (pre-release) — Upstream Rebase + Cleanup
+## v1.6 — Upstream Rebase + Cleanup
 
 **Release date:** 2026-03-01
 
@@ -30,7 +29,7 @@
 - 30+ models across 13 architecture families validated, all PPL delta = 0.000
 - 17 quantization types supported
 
-## v1.5 (pre-release) — IQ1_M Kernel + Architecture Expansion
+## v1.5 — IQ1_M Kernel + Architecture Expansion
 
 **Release date:** 2026-02-28
 
@@ -51,7 +50,7 @@
 | Llama 3.2 1B | IQ2_XS | **+17.4%** |
 | Llama 3.2 1B | IQ1_M | **+11.9%** |
 
-## v1.4 (pre-release) — Llama 4 Aliasing Fix + Hardening
+## v1.4 — Llama 4 Aliasing Fix + Hardening
 
 **Release date:** 2026-02-27
 
@@ -62,7 +61,7 @@
 - `thread_local` dedup array, ne2==1 spec-decode guard documented
 - 21 models validated
 
-## v1.3 (pre-release) — IQ Types + Kahan Summation
+## v1.3 — IQ Types + Kahan Summation
 
 **Release date:** 2026-02-26
 
@@ -73,7 +72,7 @@
 - **Fused SwiGLU opt-out** for IQ types (LDS budget conflict)
 - 16 quantization types supported
 
-## v1.2 (pre-release) — Q3_K Kernel + Stability Hardening
+## v1.2 — Q3_K Kernel + Stability Hardening
 
 **Release date:** 2026-02-25
 
@@ -102,7 +101,7 @@
 - **Long-context stress test:** 8B Q5_K_M at 4096 tokens with ctx=8192 — coherent output,
   111.2 t/s, no repetition collapse. KV-cache concern eliminated.
 
-## v1.1 (pre-release) — MXFP4 Support for OCP Microscaling MoE Models
+## v1.1 — MXFP4 Support for OCP Microscaling MoE Models
 
 **Release date:** 2026-02-24
 
@@ -133,7 +132,7 @@
 
 ---
 
-## v1.0 (pre-release) — T-MAC: Custom GEMV Kernels for RDNA3
+## v1.0 — T-MAC: Custom GEMV Kernels for RDNA3
 
 **Release date:** 2026-02-24
 
@@ -224,4 +223,4 @@ Requires ROCm (tested with 7.1; 6.x expected to work). `GGML_HIP_TMAC=ON` is the
   through to stock automatically.
 - **Alignment constraints:** Q4_K/Q5_K/Q6_K require ne0 % 256 == 0. Smaller types require
   ne0 % 32 == 0. Models with non-aligned dimensions (e.g., ne0=2880) partially bypass T-MAC.
-- **Independent fork:** Not merged upstream. Monthly rebase against llama.cpp master.
+- **Fork:** Not merged upstream. GitHub fork of llama.cpp, rebased periodically.

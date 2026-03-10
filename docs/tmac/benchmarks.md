@@ -1,7 +1,7 @@
 # T-MAC: Benchmark Results & Validation Data
 
 > Version numbers (v7.x–v9.x, v1.0–v1.6) in this document refer to internal
-> development milestones and pre-releases. The first public release is v1.0.0.
+> development milestones prior to the public fork migration.
 
 ### Evidence levels
 

@@ -314,7 +314,7 @@ excellent.
 
 **Why a fork (and not a PR)?** llama.cpp's contribution policy does not accept
 AI-generated code. I respect that boundary. Rather than obscuring how this was
-built, I chose transparency: an independent fork with monthly rebase against
+built, I chose transparency: a public fork, rebased periodically against
 upstream.
 
 **Acknowledgments.** Built on [llama.cpp](https://github.com/ggml-org/llama.cpp)
@@ -347,7 +347,7 @@ Raw data from our measurements: [`data/benchmarks/`](data/benchmarks/)
 <details>
 <summary>Relationship to Upstream</summary>
 
-- **Independent fork** with monthly rebase against [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp) master
+- **GitHub fork** of [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp), rebased periodically against upstream master
 - T-MAC files (`tmac.cu`, `tmac.cuh`) are **self-contained** — they don't exist upstream
 - Dispatch sites in `ggml-cuda.cu` and `mmvq.cu` are marked with `// ── T-MAC dispatch site N/6 ──` for easy conflict resolution during rebase
 - **All upstream functionality is preserved** — T-MAC is purely additive

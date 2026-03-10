@@ -17,7 +17,7 @@ Version:        %( date "+%%Y%%m%%d" )
 Release:        1%{?dist}
 Summary:        CPU Inference of LLaMA model in pure C/C++ (no CUDA/OpenCL)
 License:        MIT
-Source0:        https://github.com/nemekath/kuzco.cpp/archive/refs/heads/master.tar.gz
+Source0:        https://github.com/nemekath/kuzco.cpp/archive/refs/heads/tmac.tar.gz
 BuildRequires:  coreutils make gcc-c++ git cuda-toolkit
 Requires:       cuda-toolkit
 URL:            https://github.com/nemekath/kuzco.cpp
