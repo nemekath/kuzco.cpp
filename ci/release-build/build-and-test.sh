@@ -79,18 +79,9 @@ else
     [ -f "$SMOKE" ] || err "Smoke model not found: ${SMOKE}"
 
     log "Smoke test 1/4: math coherence"
-    MATH_STDERR=$(mktemp)
-    MATH_OUT=$(echo "" | ./bin/llama-completion -m "$SMOKE" -p "What is 2+2? Answer with just the number:" \
-        -n 10 -ngl 99 2>"$MATH_STDERR" || true)
-    if echo "$MATH_OUT" | grep -q "4"; then
-        rm -f "$MATH_STDERR"
-    else
-        log "stdout: [$MATH_OUT]"
-        log "stderr (last 5 lines):"
-        tail -5 "$MATH_STDERR" | while IFS= read -r line; do log "  $line"; done
-        rm -f "$MATH_STDERR"
-        err "Math coherence test failed"
-    fi
+    echo "" | ./bin/llama-completion -m "$SMOKE" -p "What is 2+2? Answer with just the number:" \
+        -n 10 -ngl 99 2>/dev/null | grep -q "4" \
+        || err "Math coherence test failed"
 
     log "Smoke test 2/4: text generation"
     OUTPUT=$(echo "" | ./bin/llama-completion -m "$SMOKE" -p "The capital of France is" \
