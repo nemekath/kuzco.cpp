@@ -6,6 +6,15 @@
 
 set -euo pipefail
 
+# ── Guard: Block commits on master branch ────────────────────────────
+CURRENT_BRANCH="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")"
+if [[ "$CURRENT_BRANCH" == "master" ]]; then
+    echo "BLOCKED: Committing on 'master' is not allowed."
+    echo "  The master branch tracks upstream. Switch to 'tmac' or a feature branch."
+    echo "  Use: git checkout tmac"
+    exit 1
+fi
+
 # ── Forbidden patterns (case-insensitive grep -E) ──────────────────────
 # Each line: "pattern|description"
 RULES=(
@@ -82,9 +91,29 @@ for rule in "${RULES[@]}"; do
   fi
 done
 
+# ── Guard: Block large files (>5 MB) ─────────────────────────────────
+MAX_SIZE=$((5 * 1024 * 1024))  # 5 MB
+LARGE_FILES=""
+if [[ -n "$STAGED_FILES" ]]; then
+  while IFS= read -r file; do
+    size=$(git cat-file -s ":0:$file" 2>/dev/null || echo 0)
+    if [[ "$size" -gt "$MAX_SIZE" ]]; then
+      size_mb=$(awk -v s="$size" 'BEGIN { printf "%.1f", s / 1048576 }')
+      LARGE_FILES+="    $file (${size_mb} MB)"$'\n'
+      ERRORS=$((ERRORS + 1))
+    fi
+  done <<< "$STAGED_FILES"
+fi
+
+if [[ -n "$LARGE_FILES" ]]; then
+  echo "BLOCKED: Large file(s) staged (limit: 5 MB)"
+  echo "  Files:"
+  echo "$LARGE_FILES"
+fi
+
 if [[ $ERRORS -gt 0 ]]; then
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  echo "Commit blocked: $ERRORS internal workflow leak(s) found."
+  echo "Commit blocked: $ERRORS violation(s) found."
   echo "Fix the files above, or use --no-verify to bypass."
   echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   exit 1
