@@ -147,57 +147,10 @@ run_bench() {
     '
 }
 
-# ─── Helper: compute mean from array ──────────────────────────────────
-mean() {
-    local arr=("$@")
-    awk -v n="${#arr[@]}" 'BEGIN {s=0; for(i=1;i<ARGC;i++) s+=ARGV[i]; printf "%.4f", s/n}' "${arr[@]}"
-}
-
-# ─── Helper: paired t-test (returns p-value) ──────────────────────────
-# Computes paired t-test on two arrays of equal length.
-# Returns p-value as string (two-tailed, approximate via t-distribution).
-paired_ttest() {
-    local -n arr_a=$1
-    local -n arr_b=$2
-    local n=${#arr_a[@]}
-
-    awk -v n="$n" 'BEGIN {
-        # Read paired differences
-        for (i = 1; i <= n; i++) {
-            d[i] = ARGV[i] - ARGV[n + i]
-        }
-        # Mean of differences
-        sum_d = 0
-        for (i = 1; i <= n; i++) sum_d += d[i]
-        mean_d = sum_d / n
-
-        # SD of differences
-        ss = 0
-        for (i = 1; i <= n; i++) ss += (d[i] - mean_d)^2
-        sd_d = sqrt(ss / (n - 1))
-
-        # t-statistic
-        if (sd_d == 0) { printf "0.0000"; exit }
-        t = mean_d / (sd_d / sqrt(n))
-        if (t < 0) t = -t  # two-tailed
-
-        # Approximate p-value via normal for df >= 4 (conservative)
-        # Using Abramowitz & Stegun approximation for normal CDF
-        df = n - 1
-        if (df < 2) { printf "1.0000"; exit }
-
-        # For df >= 5, t-distribution ≈ normal; use complementary error function approx
-        z = t
-        b1 = 0.319381530; b2 = -0.356563782; b3 = 1.781477937; b4 = -1.821255978; b5 = 1.330274429
-        p_coeff = 0.2316419
-        tt = 1.0 / (1.0 + p_coeff * z)
-        phi = (1.0 / sqrt(2 * 3.14159265358979)) * exp(-z * z / 2.0)
-        cdf = 1.0 - phi * (b1*tt + b2*tt^2 + b3*tt^3 + b4*tt^4 + b5*tt^5)
-        p = 2.0 * (1.0 - cdf)  # two-tailed
-
-        printf "%.4f", p
-    }' "${arr_a[@]}" "${arr_b[@]}"
-}
+# Shared stats helpers (compute_mean, compute_sd, paired_ttest, paired_ttest_full).
+# Note: run_bench is NOT sourced — this script's version takes bench_cmd as first arg
+# and omits -ngl (llama-bench defaults to full offload).
+source "$(dirname "$0")/lib/bench-helpers.sh"
 
 # ─── Main benchmark loop: interleaved A-B ─────────────────────────────
 echo "T-MAC Regression Test"
@@ -248,8 +201,8 @@ for model in "${MODELS[@]}"; do
             printf "  %s run %d/%d: tmac=%.2f  stock=%.2f\n" "$metric" "$i" "$N" "$t" "$s"
         done
 
-        tmac_mean=$(mean "${tmac_results[@]}")
-        stock_mean=$(mean "${stock_results[@]}")
+        tmac_mean=$(compute_mean "${tmac_results[@]}")
+        stock_mean=$(compute_mean "${stock_results[@]}")
         delta=$(awk "BEGIN {printf \"%.2f\", ($tmac_mean - $stock_mean) / $stock_mean * 100}")
 
         # Paired t-test
