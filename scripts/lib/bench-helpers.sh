@@ -5,6 +5,21 @@
 # Required: $BENCH must be set to the llama-bench binary path.
 # Optional: $GPU_ARGS (extra args like --split-mode, -ngl override)
 
+# Parse avg_ts from llama-bench CSV output (header + data line).
+# Usage: parse_avg_ts "$raw_csv_output"
+parse_avg_ts() {
+    local avg_ts
+    avg_ts=$(echo "$1" | awk -F',' '
+        NR==1 { for(i=1;i<=NF;i++) if($i=="avg_ts") col=i }
+        NR==2 && col { gsub(/"/, "", $col); print $col }
+    ')
+    if [[ -z "$avg_ts" ]]; then
+        echo "ERROR: failed to parse avg_ts from llama-bench output" >&2
+        return 1
+    fi
+    printf '%s' "$avg_ts"
+}
+
 # Run a single llama-bench invocation and extract avg_ts from CSV output.
 # Usage: run_bench <model> <metric> [env_prefix]
 #   metric: tg128, pp512, tg512, tg2048
@@ -26,10 +41,7 @@ run_bench() {
     else
         raw=$($BENCH $args 2>/dev/null)
     fi
-    echo "$raw" | awk -F',' '
-        NR==1 { for(i=1;i<=NF;i++) if($i=="avg_ts") col=i }
-        NR==2 && col { gsub(/"/, "", $col); print $col }
-    '
+    parse_avg_ts "$raw"
 }
 
 # Compute arithmetic mean of values passed as arguments.
@@ -85,11 +97,16 @@ paired_ttest_full() {
         ss_d = 0
         for (i = 1; i <= n; i++) ss_d += (d[i] - mean_d)^2
         sd_d = sqrt(ss_d / (n - 1))
+        if (sd_d == 0 && mean_d == 0) { printf "0.00 1.0000 %.1f %.1f %.1f", mean_sp, mean_sp, mean_sp; exit }
         if (sd_d == 0) { printf "inf 0.0000 %.1f %.1f %.1f", mean_sp, mean_sp, mean_sp; exit }
         t = mean_d / (sd_d / sqrt(n))
         if (t < 0) t_abs = -t; else t_abs = t
 
-        z = t_abs
+        # Cornish-Fisher expansion: map t-statistic to z-score for small df
+        # (from bench_db.py t_to_pvalue). For df>=30, normal approx is fine.
+        df = n - 1
+        if (df >= 30) z = t_abs
+        else z = t_abs * (1 - 1/(4*df)) / sqrt(1 + t_abs*t_abs/(2*df))
         b1 = 0.319381530; b2 = -0.356563782; b3 = 1.781477937
         b4 = -1.821255978; b5 = 1.330274429; p_coeff = 0.2316419
         tt = 1.0 / (1.0 + p_coeff * z)
@@ -97,7 +114,6 @@ paired_ttest_full() {
         cdf = 1.0 - phi * (b1*tt + b2*tt^2 + b3*tt^3 + b4*tt^4 + b5*tt^5)
         p = 2.0 * (1.0 - cdf)
 
-        df = n - 1
         if (df == 4) t_crit = 2.776
         else if (df == 9) t_crit = 2.262
         else if (df == 11) t_crit = 2.201

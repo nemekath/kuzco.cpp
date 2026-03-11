@@ -143,14 +143,13 @@ run_bench() {
         tg128)  args="$args -p 0 -n 128" ;;
     esac
 
-    # llama-bench CSV output: header line + data line.
-    # Find avg_ts column by name from header, extract from data line.
     local raw
-    raw=$(env $env_prefix $bench_cmd $args 2>/dev/null)
-    echo "$raw" | awk -F',' '
-        NR==1 { for(i=1;i<=NF;i++) if($i=="avg_ts") col=i }
-        NR==2 && col { gsub(/"/, "", $col); print $col }
-    '
+    if [[ -n "$env_prefix" ]]; then
+        raw=$(env $env_prefix $bench_cmd $args 2>/dev/null)
+    else
+        raw=$($bench_cmd $args 2>/dev/null)
+    fi
+    parse_avg_ts "$raw"
 }
 
 # ─── Main benchmark loop: interleaved A-B ─────────────────────────────
