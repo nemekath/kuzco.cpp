@@ -52,7 +52,7 @@ RULES=(
 # ── Files to skip ──────────────────────────────────────────────────────
 # CLAUDE.md and AGENTS.md are gitignored but check anyway; backup.sh
 # legitimately references .serena paths for operational backup.
-EXCLUDE_FILES="CLAUDE.md|AGENTS.md|scripts/backup.sh|scripts/hooks/pre-commit|scripts/scan-pii.sh"
+EXCLUDE_FILES="CLAUDE.md|AGENTS.md|scripts/backup.sh|scripts/hooks/pre-commit|scripts/scan-leaks.sh"
 
 ERRORS=0
 

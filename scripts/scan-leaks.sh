@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# scan-pii.sh — Scan tracked files for local paths, secrets, and PII.
+# scan-leaks.sh — Scan tracked files for leaked paths and secrets.
 # Run before releases or after large merges to catch leaks.
 #
 # Usage:
-#   scripts/scan-pii.sh              # scan all tracked files
-#   scripts/scan-pii.sh --staged     # scan only staged files
-#   scripts/scan-pii.sh --fix        # show suggested replacements
+#   scripts/scan-leaks.sh              # scan all tracked files
+#   scripts/scan-leaks.sh --staged     # scan only staged files
+#   scripts/scan-leaks.sh --fix        # show suggested replacements
 
 set -euo pipefail
 

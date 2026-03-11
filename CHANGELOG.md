@@ -10,19 +10,14 @@
 
 - **Release validation playbook** (`scripts/release-validate.sh`): 4-phase gate (structural, smoke, perplexity, A/B regression) with `--quick` mode for upstream merges
 - **iGPU auto-detection** (`scripts/hip-gpu-guard.sh`): Sourceable guard that auto-excludes iGPUs (gfx1036 etc.) to prevent segfaults
-- **PII/path scanner** (`scripts/scan-pii.sh`): Detects leaked local paths, API keys, and secrets in tracked files
+- **Secret scanner** (`scripts/scan-leaks.sh`): On-demand scan for leaked paths and secrets in tracked files
 
 ### Fixes
 
 - Fix SIGPIPE false failure in release smoke tests under `pipefail`
 - Fix dispatch site check script failing when run from build directory
-- Remove all hardcoded local filesystem paths from tracked files (replaced with env vars)
-- Pre-commit hook now blocks local path leaks and secret patterns
-
-### Infrastructure
-
-- 3-layer PII leak prevention: pre-commit hook + on-demand scanner + hooks
-- All scripts use environment variables (`KUZCO_MODEL_DIR`, `KUZCO_STORAGE_DIR`, `WIKITEXT`) instead of hardcoded paths
+- Replace hardcoded paths with environment variables (`KUZCO_MODEL_DIR`, `KUZCO_STORAGE_DIR`, `WIKITEXT`)
+- Pre-commit hook now blocks leaked paths and secret patterns
 
 ### Upstream
 
