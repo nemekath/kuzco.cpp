@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # scan-leaks.sh — Scan tracked files for leaked paths and secrets.
-# Run before releases or after large merges to catch leaks.
+# Run before releases or after large merges.
 #
 # Usage:
 #   scripts/scan-leaks.sh              # scan all tracked files
