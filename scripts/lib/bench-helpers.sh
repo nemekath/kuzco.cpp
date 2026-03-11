@@ -35,13 +35,17 @@ run_bench() {
 # Compute arithmetic mean of values passed as arguments.
 compute_mean() {
     local arr=("$@")
-    awk -v n="${#arr[@]}" 'BEGIN {s=0; for(i=1;i<ARGC;i++) s+=ARGV[i]; printf "%.4f", s/n}' "${arr[@]}"
+    local n="${#arr[@]}"
+    if (( n == 0 )); then printf "0.0000"; return; fi
+    awk -v n="$n" 'BEGIN {s=0; for(i=1;i<ARGC;i++) s+=ARGV[i]; printf "%.4f", s/n}' "${arr[@]}"
 }
 
 # Compute sample standard deviation (Bessel-corrected, n-1).
 compute_sd() {
     local arr=("$@")
-    awk -v n="${#arr[@]}" 'BEGIN {
+    local n="${#arr[@]}"
+    if (( n < 2 )); then printf "0.0000"; return; fi
+    awk -v n="$n" 'BEGIN {
         s=0; for(i=1;i<ARGC;i++) s+=ARGV[i]; m=s/n;
         ss=0; for(i=1;i<ARGC;i++) ss+=(ARGV[i]-m)^2;
         printf "%.4f", sqrt(ss/(n-1))
@@ -56,6 +60,7 @@ paired_ttest_full() {
     local -n _pta=$1  # T-MAC values
     local -n _ptb=$2  # Stock values
     local n=${#_pta[@]}
+    if (( n < 2 )); then printf "0.00 1.0000 0.0 0.0 0.0"; return; fi
 
     awk -v n="$n" 'BEGIN {
         for (i = 1; i <= n; i++) {

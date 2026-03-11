@@ -127,7 +127,13 @@ TMAC_COMMIT=$(git -C "$(dirname "$0")/.." rev-parse --short HEAD 2>/dev/null || 
     echo "model,metric,run,variant,tokens_per_sec"
 } > "$CSV_FILE"
 
+# Shared stats helpers (compute_mean, compute_sd, paired_ttest, paired_ttest_full).
+# Sourced first so our local run_bench (below) overrides the library version.
+source "$(dirname "$0")/lib/bench-helpers.sh"
+
 # ─── Helper: run single benchmark, extract t/s ────────────────────────
+# Overrides bench-helpers.sh run_bench: takes bench_cmd as first arg,
+# omits -ngl (llama-bench defaults to full offload).
 run_bench() {
     local bench_cmd="$1" model="$2" metric="$3" env_prefix="$4"
     local args="-m $model -r 1 -o csv"
@@ -146,11 +152,6 @@ run_bench() {
         NR==2 && col { gsub(/"/, "", $col); print $col }
     '
 }
-
-# Shared stats helpers (compute_mean, compute_sd, paired_ttest, paired_ttest_full).
-# Note: run_bench is NOT sourced — this script's version takes bench_cmd as first arg
-# and omits -ngl (llama-bench defaults to full offload).
-source "$(dirname "$0")/lib/bench-helpers.sh"
 
 # ─── Main benchmark loop: interleaved A-B ─────────────────────────────
 echo "T-MAC Regression Test"
