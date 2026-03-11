@@ -47,9 +47,14 @@ EXCLUDE_FILES="CLAUDE.md|AGENTS.md|scripts/backup.sh|scripts/hooks/pre-commit|sc
 
 ERRORS=0
 
-# Get list of staged files (excluding deleted files and excluded paths)
+# Get list of staged text files (excluding deleted and binary files)
+BINARY_FILES=$(git diff --cached --numstat --diff-filter=d \
+  | awk '$1 == "-" { print $3 }')
 STAGED_FILES=$(git diff --cached --name-only --diff-filter=d \
   | grep -vE "$EXCLUDE_FILES" || true)
+if [[ -n "$BINARY_FILES" ]]; then
+  STAGED_FILES=$(echo "$STAGED_FILES" | grep -vxF "$BINARY_FILES" || true)
+fi
 
 [[ -z "$STAGED_FILES" ]] && exit 0
 
