@@ -2,26 +2,29 @@
 
 > Versions v1.0–v1.6 were development milestones prior to the public fork migration.
 
-## v2.0.1 — PII Guardrails + iGPU Auto-Detection + Release Validation
+## v2.0.2 — iGPU Auto-Detection, Secret Scanner, Release Tooling
 
-**Release date:** 2026-03-10
+**Release date:** 2026-03-11
 
 ### New Features
 
-- **Release validation playbook** (`scripts/release-validate.sh`): 4-phase gate (structural, smoke, perplexity, A/B regression) with `--quick` mode for upstream merges
 - **iGPU auto-detection** (`scripts/hip-gpu-guard.sh`): Sourceable guard that auto-excludes iGPUs (gfx1036 etc.) to prevent segfaults
 - **Secret scanner** (`scripts/scan-leaks.sh`): On-demand scan for leaked paths and secrets in tracked files
+- **Release validation** (`scripts/release-validate.sh`): 4-phase gate (structural, smoke, perplexity, A/B regression) with `--quick` mode for upstream merges
+- **Release script** now validates changelog, creates tags, and uploads in one step
 
 ### Fixes
 
 - Fix SIGPIPE false failure in release smoke tests under `pipefail`
 - Fix dispatch site check script failing when run from build directory
+- Fix pre-commit hook portability: handle spaces in filenames, POSIX grep
+- Skip binary files in pre-commit staged content scan
 - Replace hardcoded paths with environment variables (`KUZCO_MODEL_DIR`, `KUZCO_STORAGE_DIR`, `WIKITEXT`)
-- Pre-commit hook now blocks leaked paths and secret patterns
+- Add pre-push hook to block tag pushes without CHANGELOG entry
 
 ### Upstream
 
-- Merged 131 commits from llama.cpp upstream (all T-MAC dispatch sites verified intact)
+- Merged 134 commits from llama.cpp upstream (rope fix, UT fix, qwen3vl reranker + 131 prior)
 
 ## v2.0.0 — Proper GitHub Fork + Qwen3.5 + ROCm 7.2
 
