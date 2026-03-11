@@ -221,12 +221,13 @@ BEGIN {
     printf " t-statistic: %.2f (df=%d)\n", t_stat, df
     printf " N=%d paired runs (interleaved)\n", n
 
-    if (ci_low_pct > 0.5)
+    if (ci_low_pct > 0.5) {
         printf "\n VERDICT: SIGNIFICANT speedup (CI lower bound > +0.5%%)\n"
-    else if (ci_high_pct < -0.5)
+    } else if (ci_high_pct < -0.5) {
         printf "\n VERDICT: REGRESSION (CI upper bound < -0.5%%)\n"
-    else
+    } else {
         printf "\n VERDICT: NOT SIGNIFICANT (CI includes zero)\n"
+    }
 }' "${TMAC_RUNS[@]}" "${STOCK_RUNS[@]}"
 
 echo ""

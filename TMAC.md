@@ -1,7 +1,7 @@
 # T-MAC: Custom GEMV Kernels for AMD RDNA3
 
 **+13-20% token generation throughput** on popular quantizations (Q4_K_M),
-**up to +37% on IQ types**, with AMD RX 7900 XTX
+**up to +55% on IQ types**, with AMD RX 7900 XTX
 (up to +45% on dual-GPU MoE configurations).
 
 T-MAC is a set of custom GEMV (General Matrix-Vector Multiply) kernels optimized for

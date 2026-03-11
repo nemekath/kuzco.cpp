@@ -17,7 +17,7 @@ All data was collected on the system described below.
 
 ## CSV Format
 
-All files use the same schema:
+Most files use this schema:
 
 ```csv
 # date=...,rocm=...,hip=...,gpu=...,kernel=...,commit=...
@@ -51,3 +51,7 @@ with confidence intervals and p-values.
 | `iq-types-n10-20260302.csv` | IQ3_XXS, IQ3_S, IQ2_XXS, IQ4_XS, IQ1_M (Llama 1B) | 10 |
 | `iq2xs-rerun-n10-20260302.csv` | IQ2_XXS, IQ2_XS rerun with P16 sign LUT elimination | 10 |
 | `phi-4-mini-3.8B-Q4_K_M-n5-20260302.csv` | Phi-4-mini model zoo validation | 5 |
+| `maverick-128e-iq2xxs-n5.csv` | Maverick 17Bx128E IQ2_XXS dual-GPU (alt schema†) | 5 |
+| `scout-q4km-n10-rerun.csv` | Scout Q4_K_M dual-GPU rerun (alt schema†) | 10 |
+
+† These files use a simpler `run,type,avg_ts,...` schema from ad-hoc benchmarks.

@@ -1324,7 +1324,7 @@ template <> struct tmac_quant_traits<GGML_TYPE_IQ4_XS> {
     static constexpr int sub_blocks_per_block = 8;
     static constexpr int sub_block_size = 32;
     static constexpr int sub_block_shift = 3;       // log2(8)
-    static constexpr bool needs_smem = true;
+
     static constexpr int smem_bytes = 16;           // kvalues_iq4nl[16] × 1 byte
     static constexpr int lut_entries = 16;
     static constexpr int unfused_min_blocks = 1;
@@ -1340,7 +1340,7 @@ template <> struct tmac_quant_traits<GGML_TYPE_IQ3_S> {
     static constexpr int sub_blocks_per_block = 8;
     static constexpr int sub_block_size = 32;
     static constexpr int sub_block_shift = 3;       // log2(8)
-    static constexpr bool needs_smem = true;
+
     static constexpr int smem_bytes = 512 * 4;      // iq3s_grid[512] × 4 bytes = 2048B
     static constexpr int lut_entries = 512;
     static constexpr int unfused_min_blocks = 1;
@@ -1361,7 +1361,7 @@ template <> struct tmac_quant_traits<GGML_TYPE_IQ2_XXS> {
     static constexpr int sub_blocks_per_block = 8;
     static constexpr int sub_block_size = 32;
     static constexpr int sub_block_shift = 3;       // log2(8)
-    static constexpr bool needs_smem = true;
+
     static constexpr int smem_bytes = 256 * 9 * sizeof(float);  // 9216B (stride-9 float32)
     static constexpr int lut_entries = 256;
     static constexpr int unfused_min_blocks = 1;
@@ -1377,7 +1377,7 @@ template <> struct tmac_quant_traits<GGML_TYPE_IQ3_XXS> {
     static constexpr int sub_blocks_per_block = 8;
     static constexpr int sub_block_size = 32;
     static constexpr int sub_block_shift = 3;       // log2(8)
-    static constexpr bool needs_smem = true;
+
     static constexpr int smem_bytes = 256 * 4;        // 256 × 4B = 1024B
     static constexpr int lut_entries = 256;
     static constexpr int unfused_min_blocks = 1;
@@ -1393,7 +1393,7 @@ template <> struct tmac_quant_traits<GGML_TYPE_IQ2_XS> {
     static constexpr int sub_blocks_per_block = 8;
     static constexpr int sub_block_size = 32;
     static constexpr int sub_block_shift = 3;       // log2(8)
-    static constexpr bool needs_smem = true;
+
     static constexpr int smem_bytes = 512 * 8;        // 512 × 8B = 4096B
     static constexpr int lut_entries = 512;
     static constexpr int unfused_min_blocks = 1;
@@ -1410,7 +1410,7 @@ template <> struct tmac_quant_traits<GGML_TYPE_IQ2_S> {
     static constexpr int sub_blocks_per_block = 8;
     static constexpr int sub_block_size = 32;
     static constexpr int sub_block_shift = 3;       // log2(8)
-    static constexpr bool needs_smem = true;
+
     static constexpr int smem_bytes = 1024 * 8;     // iq2s_grid (8192B). No sign LUT needed.
     static constexpr int lut_entries = 1024;
     static constexpr int unfused_min_blocks = 1;
@@ -1427,7 +1427,7 @@ template <> struct tmac_quant_traits<GGML_TYPE_IQ1_M> {
     static constexpr int sub_blocks_per_block = 8;
     static constexpr int sub_block_size = 32;
     static constexpr int sub_block_shift = 3;       // log2(8)
-    static constexpr bool needs_smem = true;
+
     static constexpr int smem_bytes = 2048 * 4;     // iq1s_grid_gpu (8192B). No sign LUT needed.
     static constexpr int lut_entries = 2048;
     static constexpr int unfused_min_blocks = 1;
@@ -1587,7 +1587,7 @@ __device__ __forceinline__ float tmac_subblock_contribution(
         // d already applied inside subblock_dot (extracted from packed scales)
         return tmac_iq1_m_subblock_dot(blk, j, av, ctx.lut_u32);
     }
-    return 0.0f;  // unreachable
+    __builtin_unreachable();
 }
 
 // ═════════════════════════════════════════════════════════════════════

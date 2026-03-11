@@ -12,7 +12,9 @@
 
 ## Reporting a vulnerability
 
-If you have discovered a security vulnerability in this project that falls inside the [covered topics](#covered-topics), please report it privately. **Do not disclose it as a public issue.** This gives us time to work with you to fix the issue before public exposure, reducing the chance that the exploit will be used before a patch is released.
+For **T-MAC kernel issues** (files in `ggml/src/ggml-cuda/tmac.*`), please open an issue at [nemekath/kuzco.cpp](https://github.com/nemekath/kuzco.cpp/issues).
+
+For **llama.cpp core issues**, please report them privately. **Do not disclose it as a public issue.** This gives us time to work with you to fix the issue before public exposure, reducing the chance that the exploit will be used before a patch is released.
 
 Please disclose it as a private [security advisory](https://github.com/ggml-org/llama.cpp/security/advisories/new).
 

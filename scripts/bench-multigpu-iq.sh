@@ -44,11 +44,11 @@ run_bench() {
         split_arg="--split-mode layer"
     fi
 
-    eval "$env_prefix $extra $BENCH \
-        -m '$model' \
+    env $env_prefix ${extra:+$extra} "$BENCH" \
+        -m "$model" \
         -p 0 -n 128 -ngl 99 \
         $split_arg \
-        -r $N" 2>&1 | tee "$outfile"
+        -r "$N" 2>&1 | tee "$outfile"
 
     echo "    Saved: $outfile"
 }

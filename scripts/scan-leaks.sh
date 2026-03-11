@@ -39,7 +39,7 @@ PATTERNS=(
 )
 
 # ── Files to exclude ─────────────────────────────────────────────────────
-EXCLUDE="CLAUDE\.md|AGENTS\.md|scripts/backup\.sh|scripts/hooks/pre-commit|scripts/scan-pii\.sh|\.local\.md$"
+EXCLUDE="CLAUDE\.md|AGENTS\.md|scripts/backup\.sh|scripts/hooks/pre-commit|scripts/scan-leaks\.sh|\.local\.md$"
 
 # ── Get file list ────────────────────────────────────────────────────────
 if [[ "$MODE" == "staged" ]]; then

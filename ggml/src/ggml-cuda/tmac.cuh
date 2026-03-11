@@ -90,23 +90,7 @@ static inline bool ggml_cuda_tmac_can_dispatch(ggml_type type, int64_t ne0) {
     } \
 } while (0)
 
-// ── Experiment safeguard ──────────────────────────────────────────────
-// P14 ran for weeks on Q4_K_M models without realizing the experiment
-// code only existed in the !is_sub_block_parallel branch (Q4_0/Q8_0/Q5_1).
-// Result: NULL EXPERIMENT — measured noise, reported it as signal.
-//
-// Use TMAC_EXPERIMENT_LOG in host-side dispatch to confirm activation.
-// Use static_assert in kernel templates to constrain quant type scope.
-//
-// Host-side (in ggml_cuda_tmac_*() wrappers or tmac_dispatch_*()):
-//   TMAC_EXPERIMENT_LOG("cache_policy", type);
-//
-// Kernel-side (inside #ifdef EXPERIMENT blocks):
-//   static_assert(QType == GGML_TYPE_Q4_0 || QType == GGML_TYPE_Q8_0,
-//       "Experiment X only implemented for Q4_0/Q8_0");
-// ──────────────────────────────────────────────────────────────────────
-#define TMAC_EXPERIMENT_LOG(name, type) \
-    TMAC_LOG_ONCE("[TMAC] Experiment '%s' active for %s\n", (name), ggml_type_name(type))
+
 
 // One-time warning when MoE expert layers fall back to stock due to alignment/warp-efficiency.
 // Fires exactly once per process (thread-safe via static bool). Tells users which guard
@@ -499,9 +483,9 @@ void ggml_cuda_tmac_q3_K_fused(
 
 struct tmac_active_ratio {
     int64_t tmac_ops;       // ops dispatched through T-MAC
-    int64_t total_ops;      // stock fallback GEMV ops (ALL quantized types, not just T-MAC-eligible)
+    int64_t stock_ops;      // stock fallback GEMV ops (ALL quantized types, not just T-MAC-eligible)
     int64_t tmac_elements;  // FLOP-weighted: M*K elements processed by T-MAC
-    int64_t total_elements; // FLOP-weighted: M*K elements processed by stock fallback
+    int64_t stock_elements; // FLOP-weighted: M*K elements processed by stock fallback
     int64_t alias_copies;   // fused ops where src1/dst aliasing required temp copy
     int64_t prefill_misses; // misses from prefill (ne2>1 batched MoE) — not a coverage gap
     int64_t expert_tmac_elements;  // FLOP-weighted: expert MoE elements via T-MAC
@@ -520,8 +504,8 @@ static inline void tmac_count_hit(int64_t elements = 1)  {
 }
 static inline void tmac_count_miss(int64_t elements = 1) {
     auto & c = tmac_get_counters();
-    c.total_ops++;
-    c.total_elements += elements;
+    c.stock_ops++;
+    c.stock_elements += elements;
 }
 static inline void tmac_count_miss_prefill() {
     tmac_get_counters().prefill_misses++;
@@ -590,12 +574,12 @@ static inline void tmac_count_alias_copy() {
 
 static inline void tmac_report_active_ratio() {
     const auto & c = tmac_get_counters();
-    const int64_t total = c.tmac_ops + c.total_ops;
+    const int64_t total = c.tmac_ops + c.stock_ops;
     if (total == 0) return;
 
     // Generation-only ratio: subtract prefill misses (ne2>1 MoE batch ops)
     // which are expected and harmless. Prefill is matrix-matrix, not GEMV.
-    const int64_t gen_misses = c.total_ops - c.prefill_misses;
+    const int64_t gen_misses = c.stock_ops - c.prefill_misses;
     const int64_t gen_total  = c.tmac_ops + gen_misses;
     const double gen_ratio = gen_total > 0 ? 100.0 * c.tmac_ops / gen_total : 100.0;
 
@@ -608,7 +592,7 @@ static inline void tmac_report_active_ratio() {
         GGML_LOG_WARN("[TMAC] *** GEMV COVERAGE WARNING: %.1f%% (%lld/%lld ops) ***\n",
             gen_ratio, (long long)c.tmac_ops, (long long)gen_total);
         GGML_LOG_WARN("[TMAC] T-MAC is NOT accelerating most GEMV ops for this model.\n");
-        GGML_LOG_WARN("[TMAC] Likely cause: unsupported quant type (Q2_K, Q3_K, etc.)\n");
+        GGML_LOG_WARN("[TMAC] Likely cause: unsupported quant type (Q2_K, etc.)\n");
         GGML_LOG_WARN("[TMAC]   or ne0 alignment (ne0 %% 256 != 0 for Q4_K/Q6_K/IQ types).\n");
         GGML_LOG_WARN("[TMAC] Run: scripts/model-card.sh <model.gguf> for tensor type diagnosis.\n");
     } else if (gen_ratio < 90.0) {
@@ -623,7 +607,7 @@ static inline void tmac_report_active_ratio() {
     }
     // FLOP-weighted ratio: reflects actual compute coverage, not just call count.
     // Addresses finding that 87.4% op ratio masked 16% FLOP coverage on GPT-OSS 120B.
-    const int64_t total_elem = c.tmac_elements + c.total_elements;
+    const int64_t total_elem = c.tmac_elements + c.stock_elements;
     if (total_elem > 0) {
         const double elem_ratio = 100.0 * c.tmac_elements / total_elem;
         // Show dense/expert split when model has MoE expert layers
@@ -658,9 +642,9 @@ static inline void tmac_report_active_ratio() {
 static inline void tmac_reset_counters() {
     auto & c = tmac_get_counters();
     c.tmac_ops = 0;
-    c.total_ops = 0;
+    c.stock_ops = 0;
     c.tmac_elements = 0;
-    c.total_elements = 0;
+    c.stock_elements = 0;
     c.alias_copies = 0;
     c.prefill_misses = 0;
     c.expert_tmac_elements = 0;

@@ -73,7 +73,7 @@
 
 - **IQ1_M kernel** — 17th supported quantization type (1.75 bpw, scaleless super-block design)
 - **4 new architecture families:** Falcon H1 (Mamba2+Attn) **+16.8%**, Mamba 2.8B (pure SSM) **+10.3%**, RWKV-6 (linear attn) **+14.5%**, Qwen2-VL (VLM) **+17.4%**
-- **Sign LUT elimination** (P16 Phase 1): IQ3_XXS **+36.6%**, IQ2_XXS **+24.6%**, IQ2_XS **+17.4%**
+- **Sign LUT elimination** (P16 Phase 1): IQ3_XXS **+36.9%**, IQ2_XXS **+24.4%**, IQ2_XS **+17.4%**
 - Qwen3.5-122B-A10B IQ2_XXS: **+7.4%** (first model exercising IQ1_M kernel, 100% Active Ratio)
 - Total: 26 models, 13 architecture families, all PPL delta = 0.000
 
@@ -81,8 +81,8 @@
 
 | Model | Quant | Speedup |
 |-------|-------|--------:|
-| Llama 3.2 1B | IQ3_XXS | **+36.6%** |
-| Llama 3.2 1B | IQ2_XXS | **+24.6%** |
+| Llama 3.2 1B | IQ3_XXS | **+36.9%** |
+| Llama 3.2 1B | IQ2_XXS | **+24.4%** |
 | Llama 3.2 1B | IQ2_XS | **+17.4%** |
 | Llama 3.2 1B | IQ1_M | **+11.9%** |
 
