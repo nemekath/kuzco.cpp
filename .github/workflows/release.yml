@@ -32,7 +32,7 @@ jobs:
             sudo tee /etc/apt/preferences.d/rocm-pin-600 > /dev/null
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            hip-dev rocm-dev cmake build-essential
+            hip-dev rocm-dev hipblas-dev rocblas-dev cmake build-essential
 
       - name: Configure CMake
         run: |
