@@ -25,13 +25,14 @@ jobs:
 
       - name: Install ROCm 7.1 dev packages
         run: |
-          # Remove pre-installed ROCm 5.x packages that conflict with 7.1
-          sudo apt-get remove -y rocm-cmake rocm-device-libs 2>/dev/null || true
           sudo mkdir -p /etc/apt/keyrings
           wget -q -O - https://repo.radeon.com/rocm/rocm.gpg.key | \
             gpg --dearmor | sudo tee /etc/apt/keyrings/rocm.gpg > /dev/null
+          # Pin AMD repo higher than Ubuntu/Microsoft repos that ship ROCm 5.x
           echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://repo.radeon.com/rocm/apt/7.1.1/ jammy main" | \
             sudo tee /etc/apt/sources.list.d/rocm.list
+          printf 'Package: *\nPin: origin repo.radeon.com\nPin-Priority: 600\n' | \
+            sudo tee /etc/apt/preferences.d/rocm-pin-600 > /dev/null
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             hip-dev rocm-dev cmake build-essential
