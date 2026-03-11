@@ -25,6 +25,8 @@ jobs:
 
       - name: Install ROCm 7.1 dev packages
         run: |
+          # Remove pre-installed ROCm 5.x packages that conflict with 7.1
+          sudo apt-get remove -y rocm-cmake rocm-device-libs 2>/dev/null || true
           sudo mkdir -p /etc/apt/keyrings
           wget -q -O - https://repo.radeon.com/rocm/rocm.gpg.key | \
             gpg --dearmor | sudo tee /etc/apt/keyrings/rocm.gpg > /dev/null
