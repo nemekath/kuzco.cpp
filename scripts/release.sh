@@ -56,6 +56,46 @@ done
 
 log() { printf '\033[1;32m[release]\033[0m %s\n' "$*"; }
 
+# ── Changelog extraction ─────────────────────────────────────────────
+# Extract the body of a changelog section for a given tag.
+# Usage: extract_changelog v2.0.1 → outputs markdown body
+extract_changelog() {
+    local tag="$1"
+    awk -v tag="$tag" '
+        BEGIN { found=0 }
+        /^## v/ {
+            if (found) exit
+            if (index($0, "## " tag " ") == 1 || $0 == "## " tag) { found=1; next }
+        }
+        /^---$/ { if (found) exit }
+        found { print }
+    ' "${REPO_ROOT}/CHANGELOG.md"
+}
+
+# Extract just the title line (e.g. "v2.0.1 — PII guardrails...")
+extract_title() {
+    local tag="$1"
+    awk -v tag="$tag" '
+        /^## v/ {
+            if (index($0, "## " tag " ") == 1 || $0 == "## " tag) {
+                sub(/^## /, ""); print; exit
+            }
+        }
+    ' "${REPO_ROOT}/CHANGELOG.md"
+}
+
+# ── Changelog validation ─────────────────────────────────────────────
+CHANGELOG_BODY="$(extract_changelog "$TAG")"
+CHANGELOG_TITLE="$(extract_title "$TAG")"
+
+if [ -z "$CHANGELOG_BODY" ]; then
+    echo "Error: No changelog entry found for ${TAG}" >&2
+    echo "  Add a '## ${TAG} — ...' section to CHANGELOG.md before releasing." >&2
+    exit 1
+fi
+
+log "Found changelog entry: ${CHANGELOG_TITLE}"
+
 mkdir -p "$RELEASE_DIR"
 
 # ── Container Build (Ubuntu 22.04) ────────────────────────────────────
@@ -119,14 +159,60 @@ if [ "$UPLOAD" = "1" ]; then
         exit 1
     fi
 
-    for tb in "${TARBALLS[@]}"; do
-        log "Uploading $(basename "$tb")..."
+    # Create annotated tag if it doesn't exist locally
+    if ! git tag -l "$TAG" | grep -q .; then
+        log "Creating annotated tag ${TAG}..."
         if [ "$DRY_RUN" = "1" ]; then
-            log "[DRY RUN] gh release upload ${TAG} ${tb} --repo nemekath/kuzco.cpp"
+            log "[DRY RUN] git tag -a ${TAG} -m '${CHANGELOG_TITLE}'"
         else
-            gh release upload "$TAG" "$tb" --repo nemekath/kuzco.cpp
+            git tag -a "$TAG" -m "$CHANGELOG_TITLE"
         fi
-    done
+    else
+        log "Tag ${TAG} already exists locally"
+    fi
+
+    # Push tag to origin
+    log "Pushing tag ${TAG} to origin..."
+    if [ "$DRY_RUN" = "1" ]; then
+        log "[DRY RUN] git push origin ${TAG}"
+    else
+        git push origin "$TAG" 2>/dev/null || log "Tag ${TAG} already exists on remote"
+    fi
+
+    # Push current branch
+    CURRENT_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+    log "Pushing branch ${CURRENT_BRANCH} to origin..."
+    if [ "$DRY_RUN" = "1" ]; then
+        log "[DRY RUN] git push origin ${CURRENT_BRANCH}"
+    else
+        git push origin "$CURRENT_BRANCH"
+    fi
+
+    # Create or update GitHub release
+    if gh release view "$TAG" --repo nemekath/kuzco.cpp &>/dev/null; then
+        log "GitHub release ${TAG} exists — uploading assets with --clobber"
+        for tb in "${TARBALLS[@]}"; do
+            log "Uploading $(basename "$tb")..."
+            if [ "$DRY_RUN" = "1" ]; then
+                log "[DRY RUN] gh release upload ${TAG} ${tb} --clobber --repo nemekath/kuzco.cpp"
+            else
+                gh release upload "$TAG" "$tb" --clobber --repo nemekath/kuzco.cpp
+            fi
+        done
+    else
+        log "Creating GitHub release ${TAG}..."
+        if [ "$DRY_RUN" = "1" ]; then
+            log "[DRY RUN] gh release create ${TAG} with notes from CHANGELOG.md"
+            for tb in "${TARBALLS[@]}"; do
+                log "[DRY RUN]   asset: $(basename "$tb")"
+            done
+        else
+            gh release create "$TAG" "${TARBALLS[@]}" \
+                --repo nemekath/kuzco.cpp \
+                --title "$CHANGELOG_TITLE" \
+                --notes "$CHANGELOG_BODY"
+        fi
+    fi
 fi
 
 log "Done. Packages in ${RELEASE_DIR}/:"
