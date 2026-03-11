@@ -2,14 +2,14 @@ name: T-MAC CI
 
 on:
   push:
-    branches: [tmac-dev]
+    branches: [tmac]
     paths:
       - 'ggml/src/ggml-cuda/tmac.*'
       - 'scripts/tmac-regression.sh'
       - 'scripts/check-dispatch-sites.sh'
       - '.github/workflows/tmac-ci.yml'
   pull_request:
-    branches: [tmac-dev]
+    branches: [tmac]
     paths:
       - 'ggml/src/ggml-cuda/tmac.*'
       - 'scripts/tmac-regression.sh'
@@ -17,18 +17,18 @@ on:
       - '.github/workflows/tmac-ci.yml'
 
 jobs:
-  # Tier 1: Build-only (GitHub-hosted runner, no GPU needed)
   build-hip:
     name: HIP Build (gfx1100)
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install ROCm dev packages
+      - name: Install ROCm 7.1 dev packages
         run: |
-          # Add ROCm repository
-          wget -q -O - https://repo.radeon.com/rocm/rocm.gpg.key | sudo apt-key add -
-          echo "deb [arch=amd64] https://repo.radeon.com/rocm/apt/6.3/ jammy main" | \
+          sudo mkdir -p /etc/apt/keyrings
+          wget -q -O - https://repo.radeon.com/rocm/rocm.gpg.key | \
+            gpg --dearmor | sudo tee /etc/apt/keyrings/rocm.gpg > /dev/null
+          echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://repo.radeon.com/rocm/apt/7.1.1/ jammy main" | \
             sudo tee /etc/apt/sources.list.d/rocm.list
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
@@ -46,21 +46,3 @@ jobs:
 
       - name: Dispatch site check
         run: scripts/check-dispatch-sites.sh
-
-  # Tier 2: GPU regression (self-hosted runner, deferred)
-  # Uncomment when self-hosted runner with RDNA3 GPU is available:
-  #
-  # regression-gpu:
-  #   name: GPU Regression (RX 7900 XTX)
-  #   runs-on: [self-hosted, rdna3]
-  #   needs: build-hip
-  #   steps:
-  #     - uses: actions/checkout@v4
-  #     - name: Build
-  #       run: |
-  #         cmake -B build -DGGML_HIP=ON -DAMDGPU_TARGETS=gfx1100
-  #         cmake --build build -j$(nproc)
-  #     - name: Quick regression
-  #       run: |
-  #         HIP_VISIBLE_DEVICES=0 scripts/tmac-regression.sh --quick
-  #       timeout-minutes: 15

@@ -9,21 +9,19 @@ permissions:
   contents: write
 
 jobs:
-  # ─── Job 1: Build (GitHub-hosted) ──────────────────────────────────
+  # --- Job 1: Build (GitHub-hosted) ---
   build:
     name: Build (Ubuntu 22.04 / ROCm / gfx1100)
     runs-on: ubuntu-22.04
     timeout-minutes: 90
     outputs:
       archive_name: ${{ steps.package.outputs.archive_name }}
-      archive_dir: ${{ steps.package.outputs.archive_dir }}
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Install ROCm 7.1 dev packages
         run: |
-          # Modern keyring method (apt-key is deprecated)
           sudo mkdir -p /etc/apt/keyrings
           wget -q -O - https://repo.radeon.com/rocm/rocm.gpg.key | \
             gpg --dearmor | sudo tee /etc/apt/keyrings/rocm.gpg > /dev/null
@@ -56,7 +54,6 @@ jobs:
           ARCHIVE_DIR="kuzco.cpp-${TAG}-ubuntu-22.04-rocm-gfx1100"
           mkdir -p "${ARCHIVE_DIR}/bin" "${ARCHIVE_DIR}/lib"
 
-          # Cherry-pick user-facing binaries
           BINARIES=(
             llama-cli
             llama-server
@@ -73,7 +70,6 @@ jobs:
             fi
           done
 
-          # Copy shared libraries (follow symlinks to get both real files and soname links)
           LIBS=(
             libllama.so
             libggml.so
@@ -83,7 +79,6 @@ jobs:
             libmtmd.so
           )
           for lib in "${LIBS[@]}"; do
-            # Copy all files matching the lib pattern (includes soname symlinks)
             for f in staging/lib/${lib}*; do
               if [ -e "$f" ]; then
                 cp -a "$f" "${ARCHIVE_DIR}/lib/"
@@ -91,79 +86,71 @@ jobs:
             done
           done
 
-          # Strip debug symbols (preserve dynamic symbol table for dlopen)
           find "${ARCHIVE_DIR}/bin" -type f -executable -exec strip --strip-unneeded {} +
           find "${ARCHIVE_DIR}/lib" -type f -name '*.so*' -exec strip --strip-unneeded {} +
 
-          # Add LICENSE
           cp LICENSE "${ARCHIVE_DIR}/"
 
-          # Generate README.txt
           cat > "${ARCHIVE_DIR}/README.txt" << 'READMEEOF'
-          kuzco.cpp — Prebuilt Release for AMD RDNA3
-          ==========================================
+kuzco.cpp — Prebuilt Release for AMD RDNA3
+==========================================
 
-          Requirements:
-            - AMD RDNA3 GPU (RX 7900 XTX / XT / W7900 or similar gfx1100/1101/1102)
-            - ROCm 6.x or 7.x runtime (hip-runtime-amd package)
-            - Ubuntu 22.04 or compatible (glibc 2.35+)
-            - libomp (ships with ROCm — if missing, add ROCm LLVM to your path:
-              export LD_LIBRARY_PATH="/opt/rocm/lib/llvm/lib:$LD_LIBRARY_PATH")
+Requirements:
+  - AMD RDNA3 GPU (RX 7900 XTX / XT / W7900 or similar gfx1100/1101/1102)
+  - ROCm 6.x or 7.x runtime (hip-runtime-amd package)
+  - Ubuntu 22.04 or compatible (glibc 2.35+)
+  - libomp (ships with ROCm — if missing, add ROCm LLVM to your path:
+    export LD_LIBRARY_PATH="/opt/rocm/lib/llvm/lib:$LD_LIBRARY_PATH")
 
-          Quick Start:
-            tar xzf kuzco.cpp-*.tar.gz
-            cd kuzco.cpp-*/
-            export LD_LIBRARY_PATH="$(pwd)/lib:$LD_LIBRARY_PATH"
-            HIP_VISIBLE_DEVICES=0 ./bin/llama-cli -m model.gguf -ngl 99
+Quick Start:
+  tar xzf kuzco.cpp-*.tar.gz
+  cd kuzco.cpp-*/
+  export LD_LIBRARY_PATH="$(pwd)/lib:$LD_LIBRARY_PATH"
+  HIP_VISIBLE_DEVICES=0 ./bin/llama-cli -m model.gguf -ngl 99
 
-          System-Wide Install:
-            sudo cp bin/* /usr/local/bin/
-            sudo cp lib/* /usr/local/lib/
-            sudo ldconfig
+System-Wide Install:
+  sudo cp bin/* /usr/local/bin/
+  sudo cp lib/* /usr/local/lib/
+  sudo ldconfig
 
-          Local Install (no root):
-            export PATH="$(pwd)/bin:$PATH"
-            export LD_LIBRARY_PATH="$(pwd)/lib:$LD_LIBRARY_PATH"
+Local Install (no root):
+  export PATH="$(pwd)/bin:$PATH"
+  export LD_LIBRARY_PATH="$(pwd)/lib:$LD_LIBRARY_PATH"
 
-          Usage Notes:
-            - Set HIP_VISIBLE_DEVICES=0 if you have an integrated GPU (avoids segfault)
-            - T-MAC kernels activate automatically on RDNA3 — no configuration needed
-            - To disable T-MAC (stock fallback): export GGML_HIP_NO_TMAC=1
+Usage Notes:
+  - Set HIP_VISIBLE_DEVICES=0 if you have an integrated GPU (avoids segfault)
+  - T-MAC kernels activate automatically on RDNA3 — no configuration needed
+  - To disable T-MAC (stock fallback): export GGML_HIP_NO_TMAC=1
 
-          Binaries:
-            llama-cli         Interactive chat / text generation
-            llama-server      OpenAI-compatible HTTP server
-            llama-bench       Throughput benchmarking (pp/tg)
-            llama-quantize    Convert / re-quantize GGUF models
-            llama-perplexity  Perplexity evaluation on datasets
-            llama-completion  Single-shot text completion
+Binaries:
+  llama-cli         Interactive chat / text generation
+  llama-server      OpenAI-compatible HTTP server
+  llama-bench       Throughput benchmarking (pp/tg)
+  llama-quantize    Convert / re-quantize GGUF models
+  llama-perplexity  Perplexity evaluation on datasets
+  llama-completion  Single-shot text completion
 
-          Libraries:
-            libllama.so       Core inference library
-            libggml.so        Tensor computation framework
-            libggml-base.so   Base ggml operations
-            libggml-hip.so    HIP/ROCm backend (includes T-MAC kernels)
-            libggml-cpu.so    CPU backend fallback
-            libmtmd.so        Multimodal support (required by llama-cli)
+Libraries:
+  libllama.so       Core inference library
+  libggml.so        Tensor computation framework
+  libggml-base.so   Base ggml operations
+  libggml-hip.so    HIP/ROCm backend (includes T-MAC kernels)
+  libggml-cpu.so    CPU backend fallback
+  libmtmd.so        Multimodal support (required by llama-cli)
 
-          Source & Issues: https://github.com/nemekath/kuzco.cpp
-          READMEEOF
+Source & Issues: https://github.com/nemekath/kuzco.cpp
+READMEEOF
 
-          # Create archive
           tar czf "${ARCHIVE_DIR}.tar.gz" "${ARCHIVE_DIR}"
           echo "archive_name=${ARCHIVE_DIR}.tar.gz" >> "$GITHUB_OUTPUT"
-          echo "archive_dir=${ARCHIVE_DIR}" >> "$GITHUB_OUTPUT"
 
       - name: Extract release notes
         run: |
           TAG="${GITHUB_REF_NAME}"
-          # Extract section between ## vX.Y headings in CHANGELOG.md
-          # Matches "## vTAG" (with optional suffix) until next "## v" or EOF
           NOTES=$(awk -v tag="${TAG}" '
             BEGIN { found=0 }
             /^## / {
               if (found) exit
-              # Match "## v1.7" or "## v1.7 — Title"
               if (index($0, "## " tag) == 1) found=1
             }
             found { print }
@@ -177,7 +164,6 @@ jobs:
           See [CHANGELOG.md](https://github.com/nemekath/kuzco.cpp/blob/${TAG}/CHANGELOG.md) for details."
           fi
 
-          # Write to file (gh release create reads from file)
           echo "$NOTES" > release-notes.md
 
       - name: Upload archive
@@ -194,198 +180,11 @@ jobs:
           path: release-notes.md
           retention-days: 7
 
-  # ─── Job 2: GPU Verification (self-hosted RDNA3) ──────────────────
-  verify:
-    name: GPU Verification (RDNA3)
-    needs: build
-    runs-on: [self-hosted, rdna3]
-    timeout-minutes: 30
-    env:
-      HIP_VISIBLE_DEVICES: "0"
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Download archive
-        uses: actions/download-artifact@v4
-        with:
-          name: release-archive
-
-      - name: Extract archive and set paths
-        env:
-          ARCHIVE_NAME: ${{ needs.build.outputs.archive_name }}
-          ARCHIVE_DIR: ${{ needs.build.outputs.archive_dir }}
-        run: |
-          tar xzf "${ARCHIVE_NAME}"
-          RELEASE_DIR="$(pwd)/${ARCHIVE_DIR}"
-          echo "RELEASE_DIR=${RELEASE_DIR}" >> "$GITHUB_ENV"
-          echo "LD_LIBRARY_PATH=${RELEASE_DIR}/lib:/opt/rocm/lib/llvm/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" >> "$GITHUB_ENV"
-
-      - name: Setup model symlinks
-        run: scripts/setup-test-models.sh
-
-      - name: "Tier 1: Smoke test"
-        run: |
-          BIN="${RELEASE_DIR}/bin"
-
-          # Math test (1B Q4_0)
-          echo "--- Smoke test 1: 1B Q4_0 (math) ---"
-          OUTPUT=$(echo "" | "${BIN}/llama-completion" \
-            -m models/1B-Q4_0.gguf \
-            -p "The answer to 2+2 is" -n 20 -ngl 99 -no-cnv 2>smoke1.stderr) || true
-          echo "$OUTPUT"
-          if ! echo "$OUTPUT" | grep -q "4"; then
-            echo "::error::Smoke test 1 failed: '4' not found in 1B output"
-            echo "--- stderr ---"; cat smoke1.stderr
-            exit 1
-          fi
-
-          # Knowledge test (30B MoE Q4_0)
-          echo "--- Smoke test 2: Nemotron 30B Q4_0 (knowledge) ---"
-          OUTPUT=$(echo "" | "${BIN}/llama-completion" \
-            -m models/Nemotron-30B-Q4_0.gguf \
-            -p "The capital of France is" -n 20 -ngl 99 -no-cnv 2>smoke2.stderr) || true
-          echo "$OUTPUT"
-          if ! echo "$OUTPUT" | grep -qi "Paris"; then
-            echo "::error::Smoke test 2 failed: 'Paris' not found in 30B output"
-            echo "--- stderr ---"; cat smoke2.stderr
-            exit 1
-          fi
-
-          echo "All smoke tests passed."
-
-      - name: "Tier 2: Long-form coherence"
-        run: |
-          BIN="${RELEASE_DIR}/bin"
-
-          echo "" | "${BIN}/llama-completion" \
-            -m models/1B-Q4_K_M.gguf -ngl 99 \
-            -p "Write a comprehensive guide to building a compiler from scratch..." \
-            -n 2048 --temp 0.0 -no-cnv > long-form-output.txt 2>longform.stderr
-
-          WORDS=$(wc -w < long-form-output.txt)
-
-          if (( WORDS == 0 )); then
-            echo "::error::Long-form coherence failed: zero words produced"
-            echo "--- stderr ---"; cat longform.stderr
-            exit 1
-          fi
-
-          UNIQUE=$(tr ' ' '\n' < long-form-output.txt | sort -u | wc -l)
-          RATIO=$(awk "BEGIN {printf \"%.0f\", 100*${UNIQUE}/${WORDS}}")
-
-          echo "Long-form: words=$WORDS unique=$UNIQUE ratio=${RATIO}%"
-
-          # Repetition collapse: ratio drops to <20%. Healthy text: 40-60%.
-          if (( WORDS < 1000 || RATIO < 30 )); then
-            echo "::error::Long-form coherence failed: words=$WORDS unique_ratio=${RATIO}%"
-            echo "--- Output (first 2000 chars) ---"
-            head -c 2000 long-form-output.txt
-            exit 1
-          fi
-
-          echo "Long-form coherence passed."
-
-      - name: "Tier 3: Perplexity comparison"
-        run: |
-          BIN="${RELEASE_DIR}/bin"
-          WIKITEXT="/tmp/wikitext-2/wikitext-2-raw/wiki.test.raw"
-
-          if [[ ! -f "$WIKITEXT" ]]; then
-            echo "::error::Wikitext-2 dataset not found at $WIKITEXT"
-            exit 1
-          fi
-
-          # T-MAC run
-          echo "--- Perplexity: T-MAC ---"
-          "${BIN}/llama-perplexity" \
-            -m models/1B-Q4_K_M.gguf -ngl 99 \
-            -f "$WIKITEXT" 2>&1 | tee tmac-ppl.log
-
-          # Stock run
-          echo "--- Perplexity: Stock ---"
-          GGML_HIP_NO_TMAC=1 "${BIN}/llama-perplexity" \
-            -m models/1B-Q4_K_M.gguf -ngl 99 \
-            -f "$WIKITEXT" 2>&1 | tee stock-ppl.log
-
-          PPL_TMAC=$(grep "Final estimate" tmac-ppl.log | grep -oP 'PPL = \K[\d.]+' || true)
-          PPL_STOCK=$(grep "Final estimate" stock-ppl.log | grep -oP 'PPL = \K[\d.]+' || true)
-
-          if [[ -z "$PPL_TMAC" || -z "$PPL_STOCK" ]]; then
-            echo "::error::Failed to parse perplexity from logs"
-            echo "--- tmac log tail ---"; tail -5 tmac-ppl.log
-            echo "--- stock log tail ---"; tail -5 stock-ppl.log
-            exit 1
-          fi
-
-          DELTA=$(awk "BEGIN {d=${PPL_TMAC}-${PPL_STOCK}; print (d<0?-d:d)}")
-
-          echo "T-MAC PPL: $PPL_TMAC | Stock PPL: $PPL_STOCK | Delta: $DELTA"
-
-          if (( $(awk "BEGIN {print (${DELTA} >= 0.1)}") )); then
-            echo "::error::Perplexity delta $DELTA >= 0.1 threshold"
-            exit 1
-          fi
-
-          echo "Perplexity comparison passed (delta=$DELTA)."
-
-      - name: "Regression test"
-        run: |
-          # Build model list from available symlinks (skip models not present on this runner)
-          REGRESSION_MODELS=(
-            models/1B-Q4_K_M.gguf     models/22B-Q4_K_M.gguf
-            models/OLMoE-Q4_K_M.gguf  models/1B-IQ3_S.gguf
-            models/1B-IQ4_XS.gguf     models/1B-Q5_0.gguf
-            models/1B-Q5_K_M.gguf     models/1B-IQ3_XXS.gguf
-            models/1B-IQ2_XXS.gguf    models/1B-IQ2_XS.gguf
-            models/1B-IQ1_M.gguf      models/1B-Q3_K_L.gguf
-            models/8B-Q5_K_M.gguf     models/OLMoE-IQ3_S.gguf
-            models/OLMoE-IQ3_XXS.gguf
-          )
-          AVAILABLE_ARRAY=()
-          for m in "${REGRESSION_MODELS[@]}"; do
-            [[ -f "$m" ]] && AVAILABLE_ARRAY+=("$m")
-          done
-
-          if (( ${#AVAILABLE_ARRAY[@]} == 0 )); then
-            echo "::error::No regression models available"
-            exit 1
-          fi
-
-          echo "Regression models (${#AVAILABLE_ARRAY[@]} available):"
-          printf '  %s\n' "${AVAILABLE_ARRAY[@]}"
-
-          scripts/tmac-regression.sh --quick \
-            --bench "${RELEASE_DIR}/bin/llama-bench" \
-            --csv regression-results.csv \
-            --models "${AVAILABLE_ARRAY[*]}"
-
-      - name: Upload regression results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: regression-results
-          path: regression-results.csv
-          retention-days: 30
-          if-no-files-found: ignore
-
-      - name: Cleanup
-        if: always()
-        env:
-          ARCHIVE_DIR: ${{ needs.build.outputs.archive_dir }}
-          ARCHIVE_NAME: ${{ needs.build.outputs.archive_name }}
-        run: |
-          rm -rf "${ARCHIVE_DIR}" || true
-          rm -f "${ARCHIVE_NAME}" || true
-          rm -f long-form-output.txt longform.stderr || true
-          rm -f tmac-ppl.log stock-ppl.log || true
-          rm -f smoke1.stderr smoke2.stderr || true
-          rm -f regression-results.csv || true
-
-  # ─── Job 3: Publish Release (only after verification) ─────────────
+  # --- Job 2: Publish Release ---
+  # GPU verification runs locally before tag push (scripts/release-validate.sh).
   release:
     name: Publish Release
-    needs: [build, verify]
+    needs: build
     runs-on: ubuntu-22.04
     timeout-minutes: 10
 
