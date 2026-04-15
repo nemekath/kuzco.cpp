@@ -1,0 +1,51 @@
+name: T-MAC CI
+
+on:
+  push:
+    branches: [tmac]
+    paths:
+      - 'ggml/src/ggml-cuda/tmac.*'
+      - 'scripts/tmac-regression.sh'
+      - 'scripts/check-dispatch-sites.sh'
+      - '.github/workflows/tmac-ci.yml'
+  pull_request:
+    branches: [tmac]
+    paths:
+      - 'ggml/src/ggml-cuda/tmac.*'
+      - 'scripts/tmac-regression.sh'
+      - 'scripts/check-dispatch-sites.sh'
+      - '.github/workflows/tmac-ci.yml'
+
+jobs:
+  build-hip:
+    name: HIP Build (gfx1100)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ROCm 7.1 dev packages
+        run: |
+          sudo mkdir -p /etc/apt/keyrings
+          wget -q -O - https://repo.radeon.com/rocm/rocm.gpg.key | \
+            gpg --dearmor | sudo tee /etc/apt/keyrings/rocm.gpg > /dev/null
+          # Pin AMD repo higher than Ubuntu/Microsoft repos that ship ROCm 5.x
+          echo "deb [arch=amd64 signed-by=/etc/apt/keyrings/rocm.gpg] https://repo.radeon.com/rocm/apt/7.1.1/ jammy main" | \
+            sudo tee /etc/apt/sources.list.d/rocm.list
+          printf 'Package: *\nPin: origin repo.radeon.com\nPin-Priority: 600\n' | \
+            sudo tee /etc/apt/preferences.d/rocm-pin-600 > /dev/null
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            hip-dev rocm-dev hipblas-dev rocblas-dev cmake build-essential
+
+      - name: Configure CMake
+        run: |
+          cmake -B build \
+            -DGGML_HIP=ON \
+            -DAMDGPU_TARGETS=gfx1100 \
+            -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build -j$(nproc)
+
+      - name: Dispatch site check
+        run: scripts/check-dispatch-sites.sh
