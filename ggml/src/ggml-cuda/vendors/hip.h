@@ -16,9 +16,9 @@
 #define CUBLAS_OP_T HIPBLAS_OP_T
 #define CUBLAS_STATUS_SUCCESS HIPBLAS_STATUS_SUCCESS
 #define CUBLAS_TF32_TENSOR_OP_MATH 0
-#define CUDA_R_16F  HIPBLAS_R_16F
+#define CUDA_R_16F HIP_R_16F
 #define CUDA_R_16BF HIPBLAS_R_16B
-#define CUDA_R_32F  HIPBLAS_R_32F
+#define CUDA_R_32F HIP_R_32F
 #define CUBLAS_SIDE_RIGHT HIPBLAS_SIDE_RIGHT
 #define CUBLAS_FILL_MODE_UPPER HIPBLAS_FILL_MODE_UPPER
 #define CUBLAS_DIAG_NON_UNIT HIPBLAS_DIAG_NON_UNIT
@@ -158,9 +158,9 @@
 #define cublasComputeType_t hipblasComputeType_t
 #define cudaDataType_t hipDataType
 #else
-#define CUBLAS_COMPUTE_16F HIPBLAS_R_16F
-#define CUBLAS_COMPUTE_32F HIPBLAS_R_32F
-#define CUBLAS_COMPUTE_32F_FAST_16F HIPBLAS_R_32F
+#define CUBLAS_COMPUTE_16F HIPBLAS_COMPUTE_16F
+#define CUBLAS_COMPUTE_32F HIPBLAS_COMPUTE_32F
+#define CUBLAS_COMPUTE_32F_FAST_16F HIPBLAS_COMPUTE_32F
 #define cublasComputeType_t hipblasDatatype_t
 #define cudaDataType_t hipblasDatatype_t
 #endif // HIP_VERSION >= 6050000
@@ -206,6 +206,14 @@
 #if defined(__GFX11__)
 #define RDNA3
 #endif // defined(__GFX11__)
+
+#if defined(__gfx1150__) || defined(__gfx1151__)
+#define RDNA3_5
+#endif // defined(__gfx1150__) || defined(__gfx1151__)
+
+#if defined(RDNA3) && !defined(RDNA3_5)
+#define RDNA3_0
+#endif // defined(RDNA3) && !defined(RDNA3_5)
 
 #if defined(__gfx1030__) || defined(__gfx1031__) || defined(__gfx1032__) || defined(__gfx1033__) || \
     defined(__gfx1034__) || defined(__gfx1035__) || defined(__gfx1036__) || defined(__gfx1037__)

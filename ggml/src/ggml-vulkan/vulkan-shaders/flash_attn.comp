@@ -245,7 +245,7 @@ void main() {
 #endif
                     }
                     [[unroll]] for (uint32_t r = 0; r < rows_per_thread; ++r) {
-                        Sf[r][c] += ACC_TYPE(dot(Q_cache[r], K_Tf));
+                        Sf[r][c] += dot(ACC_TYPEV4(Q_cache[r]), ACC_TYPEV4(K_Tf));
                     }
                 }
             }
@@ -270,7 +270,7 @@ void main() {
 #endif
                     }
                     [[unroll]] for (uint32_t r = 0; r < rows_per_thread; ++r) {
-                        Sf[r][c] += ACC_TYPE(dot(Qf[tile_row(r) * qf_stride + d * D_split + d_tid], K_Tf));
+                        Sf[r][c] += dot(ACC_TYPEV4(Qf[tile_row(r) * qf_stride + d * D_split + d_tid]), ACC_TYPEV4(K_Tf));
                     }
                 }
             }
@@ -465,7 +465,14 @@ void main() {
 
             if (SubGroupSize > 0) {
                 [[unroll]] for (uint s = D_split; s < SubGroupSize; s *= 2) {
-                    Of[r][d] += subgroupShuffleXor(Of[r][d], s);
+                    if (!OLD_AMD_WINDOWS) {
+                        Of[r][d] += subgroupShuffleXor(Of[r][d], s);
+                    } else {
+                        // Something about f16vec4 subgroupShuffleXor is broken on AMD Windows RDNA2 and below.
+                        // Shuffle full vec4 as workaround.
+                        // See https://github.com/ggml-org/llama.cpp/issues/19881#issuecomment-3958643697
+                        Of[r][d] += FLOAT_TYPEV4(subgroupShuffleXor(vec4(Of[r][d]), s));
+                    }
                 }
                 if (row_split == 1) {
                     barrier();

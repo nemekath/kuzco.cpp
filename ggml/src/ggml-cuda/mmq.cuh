@@ -3983,8 +3983,18 @@ void mul_mat_q_case(ggml_backend_cuda_context & ctx, const mmq_args & args, cuda
     const int warp_size = ggml_cuda_info().devices[id].warp_size;
     const int nwarps    = mmq_get_nwarps_host(cc, warp_size);
 
-    const int mmq_x_max = get_mmq_x_max_host(cc);
+    int mmq_x_max = get_mmq_x_max_host(cc);
     const int mmq_y = get_mmq_y_host(cc);
+
+    // RDNA3/3.5: cap mmq_x at 16 — larger tiles (24, 32, ...) cause occupancy
+    // collapse due to register pressure on Wave32. Without this cap, batch=17
+    // selects mmq_x=24 (one tile) instead of mmq_x=16 (two tiles), resulting
+    // in a 6x performance cliff (690ms vs 113ms on Gemma 27B Q6_K).
+    // Two 16-wide tiles are faster than one oversized tile on these architectures.
+    // TODO: validate on RDNA4 (gfx12) when hardware available, then upstream.
+    if (GGML_CUDA_CC_IS_RDNA3(cc)) {
+        mmq_x_max = std::min(mmq_x_max, 16);
+    }
 
     int mmq_x_best  = 0;
     int ntiles_x_best = INT_MAX;

@@ -1,0 +1,23 @@
+# Pacman hook: remind to run T-MAC regression after ROCm/driver updates.
+#
+# Install (adjust KUZCO_DIR path to your repo location):
+#   sudo cp scripts/pacman-hooks/rocm-tmac-regression.hook /etc/pacman.d/hooks/
+#   sudo sed -i "s|KUZCO_DIR=.*|KUZCO_DIR=$PWD|" /etc/pacman.d/hooks/rocm-tmac-regression.hook
+#
+# P15: Memory Controller QoS Monitoring
+
+[Trigger]
+Operation = Install
+Operation = Upgrade
+Type = Package
+Target = rocm-hip-runtime
+Target = rocm-hip-sdk
+Target = amdgpu-dkms
+Target = linux
+Target = linux-cachyos
+
+[Action]
+Description = Checking T-MAC regression baseline...
+When = PostTransaction
+Exec = /usr/bin/env KUZCO_DIR=/opt/kuzco-cpp /usr/bin/bash -c '$KUZCO_DIR/scripts/p15-driver-check.sh'
+NeedsTargets

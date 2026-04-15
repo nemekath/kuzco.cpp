@@ -1,0 +1,41 @@
+# P15 baseline: known-good T-MAC speedup percentages per model+metric.
+# Generated from tmac-regression runs on ROCm 7.2.0, kernel 6.19.6-2-cachyos.
+# Used by: scripts/tmac-regression.sh --compare
+# Format: model,metric,baseline_delta_pct
+#
+# A driver update that drops any tg128 delta by >5pp or pp512 delta by >3pp
+# (vs this baseline) triggers a P15 warning.
+#
+# Last updated: 2026-03-18 (post v2.1.0, ROCm 7.2.0)
+# Source: N=10 interleaved benchmarks from docs/tmac/benchmarks.md
+model,metric,baseline_delta_pct
+1B-Q4_K_M,tg128,20.3
+1B-Q4_K_M,pp512,0.0
+22B-Q4_K_M,tg128,14.1
+22B-Q4_K_M,pp512,0.0
+OLMoE-Q4_K_M,tg128,14.8
+OLMoE-Q4_K_M,pp512,0.0
+1B-IQ3_S,tg128,34.4
+1B-IQ3_S,pp512,0.0
+1B-IQ4_XS,tg128,11.1
+1B-IQ4_XS,pp512,0.0
+1B-Q5_0,tg128,20.2
+1B-Q5_0,pp512,0.0
+1B-Q5_K_M,tg128,14.4
+1B-Q5_K_M,pp512,0.0
+1B-IQ3_XXS,tg128,36.6
+1B-IQ3_XXS,pp512,0.0
+1B-IQ2_XXS,tg128,24.6
+1B-IQ2_XXS,pp512,0.0
+1B-IQ2_XS,tg128,17.4
+1B-IQ2_XS,pp512,0.0
+1B-IQ1_M,tg128,11.9
+1B-IQ1_M,pp512,0.0
+1B-Q3_K_L,tg128,2.5
+1B-Q3_K_L,pp512,0.0
+8B-Q5_K_M,tg128,4.9
+8B-Q5_K_M,pp512,0.0
+OLMoE-IQ3_S,tg128,29.1
+OLMoE-IQ3_S,pp512,0.0
+OLMoE-IQ3_XXS,tg128,28.2
+OLMoE-IQ3_XXS,pp512,0.0

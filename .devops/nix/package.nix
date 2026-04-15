@@ -216,7 +216,7 @@ effectiveStdenv.mkDerivation (finalAttrs: {
     broken = (useMetalKit && !effectiveStdenv.isDarwin);
 
     description = "Inference of LLaMA model in pure C/C++${descriptionSuffix}";
-    homepage = "https://github.com/ggml-org/llama.cpp/";
+    homepage = "https://github.com/nemekath/kuzco.cpp/";
     license = lib.licenses.mit;
 
     # Accommodates `nix run` and `lib.getExe`

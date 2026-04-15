@@ -11,6 +11,10 @@ endif()
 list(APPEND CMAKE_PREFIX_PATH  ${ROCM_PATH})
 list(APPEND CMAKE_PREFIX_PATH "${ROCM_PATH}/lib64/cmake")
 
+if (NOT DEFINED CMAKE_HIP_FLAGS_DEBUG)
+    set(CMAKE_HIP_FLAGS_DEBUG "-g -O2")
+endif()
+
 # CMake on Windows doesn't support the HIP language yet
 if (WIN32)
     set(CXX_IS_HIPCC TRUE)
@@ -78,10 +82,19 @@ else()
     list(APPEND GGML_SOURCES_ROCM ${SRCS})
 endif()
 
+# T-MAC kernels are HIP/RDNA3-only; filter BEFORE target creation consumes the source list
+if (NOT GGML_HIP_TMAC)
+    list(FILTER GGML_SOURCES_ROCM EXCLUDE REGEX "tmac\\.cu$")
+endif()
+
 ggml_add_backend_library(ggml-hip
                          ${GGML_HEADERS_ROCM}
                          ${GGML_SOURCES_ROCM}
                         )
+
+if (GGML_HIP_TMAC)
+    target_compile_definitions(ggml-hip PRIVATE GGML_HIP_TMAC)
+endif()
 
 # TODO: do not use CUDA definitions for HIP
 if (NOT GGML_BACKEND_DL)

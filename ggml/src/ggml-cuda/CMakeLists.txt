@@ -102,6 +102,10 @@ if (CUDAToolkit_FOUND)
     list(APPEND GGML_HEADERS_CUDA "../../include/ggml-cuda.h")
 
     file(GLOB   GGML_SOURCES_CUDA "*.cu")
+
+    # T-MAC kernels are HIP/RDNA3-only; exclude from CUDA builds
+    list(FILTER GGML_SOURCES_CUDA EXCLUDE REGEX "tmac\\.cu$")
+
     file(GLOB   SRCS "template-instances/fattn-tile*.cu")
     list(APPEND GGML_SOURCES_CUDA ${SRCS})
     file(GLOB   SRCS "template-instances/fattn-mma*.cu")
