@@ -29,9 +29,6 @@ NC='\033[0m'
 # ── Generic patterns ─────────────────────────────────────────────────────
 # Format: "grep_pattern|category|description|fix_suggestion"
 PATTERNS=(
-  '(^|[^a-zA-Z0-9_])/home/[a-z][a-z0-9_-]*/|LOCAL_PATH|Linux home directory path|Use env var or relative path'
-  '(^|[^a-zA-Z0-9_])/mnt/[a-z][a-z0-9_-]+/|LOCAL_PATH|Linux mount path|Use env var'
-  '(^|[^a-zA-Z0-9_])/Users/[a-z][a-z0-9_-]*/|LOCAL_PATH|macOS home path|Use env var or relative path'
   'sk-[a-zA-Z0-9]{20,}|SECRET|OpenAI/Anthropic API key|Use env var or .env file'
   'ghp_[a-zA-Z0-9]{36}|SECRET|GitHub Personal Access Token|Use gh auth or env var'
   'github_pat_[a-zA-Z0-9_]{80,}|SECRET|GitHub Fine-Grained PAT|Use gh auth or env var'

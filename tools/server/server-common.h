@@ -290,6 +290,7 @@ struct server_chat_params {
     int  reasoning_budget = -1;
     std::string reasoning_budget_message;
     std::string media_path;
+    bool force_pure_content = false;
 };
 
 // used by /completions endpoint
@@ -303,6 +304,12 @@ json oaicompat_chat_params_parse(
 
 // convert OpenAI Responses API format to OpenAI Chat Completions API format
 json convert_responses_to_chatcmpl(const json & body);
+
+// convert OpenAI transcriptions API format to OpenAI Chat Completions API format
+json convert_transcriptions_to_chatcmpl(
+    const json & body,
+    const std::map<std::string, raw_buffer> & in_files,
+    std::vector<raw_buffer> & out_files);
 
 // convert Anthropic Messages API format to OpenAI Chat Completions API format
 json convert_anthropic_to_oai(const json & body);
