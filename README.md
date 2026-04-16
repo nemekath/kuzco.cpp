@@ -1,7 +1,7 @@
 # kuzco.cpp — the fast speaking Llama!
 
 > llama.cpp fork with T-MAC kernels for AMD RDNA3 — **+10-20% faster token generation**
-> on popular quantizations, **up to +55% on IQ types** (median +14% across 31+ models).
+> on popular quantizations (Q4_K_M median +14%), **up to +55% on IQ types**. 31+ models validated.
 
 <p align="center">
   <img src="docs/kuzco-logo.png" alt="kuzco.cpp logo" width="400">
@@ -20,7 +20,7 @@ It replaces the inner math kernel that runs during text generation with a custom
 version optimized for AMD's GPU architecture. Everything else stays the same:
 same models, same output quality, same commands.
 
-- **+10-20% faster** on Q4_K_M (most popular), up to +55% on IQ types (median +14%)
+- **+10-20% faster** on Q4_K_M (most popular, median +14%), up to +55% on IQ types
 - **Zero configuration** — auto-detects your GPU and activates automatically
 - **Bit-identical output** — same quality as stock llama.cpp (perplexity delta = 0.000)
 - **Safe fallback** — non-AMD hardware uses the stock kernel, nothing changes
