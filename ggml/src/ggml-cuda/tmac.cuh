@@ -77,7 +77,13 @@ static inline bool ggml_cuda_tmac_can_dispatch(ggml_type type, int64_t ne0) {
         return true;
     }
     // Q4_0/Q8_0/Q5_0/Q5_1/MXFP4: 32-element blocks.
-    return ne0 % 32 == 0 && ne0 >= 128;
+    // Warp efficiency guard for simple quant types: ne0 < 512 means fewer than
+    // 16 blocks per row — the per-warp reduction overhead exceeds bandwidth savings,
+    // especially on RDNA3 where upstream MMVQ now uses 8 warps (commit 617db241a).
+    // This prevents regressions on MLA architectures (GLM, DeepSeek-V2) with small
+    // KV projection dimensions (ne0=192, ne0=512).
+    if (ne0 < 512) return false;
+    return ne0 % 32 == 0;
 }
 
 // One-shot debug log — replaces repeated static bool + GGML_LOG_DEBUG boilerplate.
