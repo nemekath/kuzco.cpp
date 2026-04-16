@@ -1,7 +1,7 @@
 # kuzco.cpp — the fast speaking Llama!
 
-> llama.cpp fork with T-MAC kernels for AMD RDNA3 — **+13-20% faster token generation**
-> on popular quantizations, **up to +55% on MoE+IQ types** (median +14-18% across 30+ models).
+> llama.cpp fork with T-MAC kernels for AMD RDNA3 — **+10-20% faster token generation**
+> on popular quantizations, **up to +55% on IQ types** (median +14% across 31+ models).
 
 <p align="center">
   <img src="docs/kuzco-logo.png" alt="kuzco.cpp logo" width="400">
@@ -20,11 +20,11 @@ It replaces the inner math kernel that runs during text generation with a custom
 version optimized for AMD's GPU architecture. Everything else stays the same:
 same models, same output quality, same commands.
 
-- **+13-20% faster** on Q4_K_M (most popular), up to +55% on MoE+IQ (median +14-18%)
+- **+10-20% faster** on Q4_K_M (most popular), up to +55% on IQ types (median +14%)
 - **Zero configuration** — auto-detects your GPU and activates automatically
 - **Bit-identical output** — same quality as stock llama.cpp (perplexity delta = 0.000)
 - **Safe fallback** — non-AMD hardware uses the stock kernel, nothing changes
-- **31+ models tested** across 13 architecture families, including Qwen3.5 and GLM-4.7
+- **31+ models tested** across 13 architecture families, including Qwen3, Qwen3.5, and Nemotron-3
 
 ## Performance
 
@@ -32,8 +32,8 @@ same models, same output quality, same commands.
   <img src="docs/tmac/chart-throughput-q4km.png" alt="T-MAC vs stock throughput comparison" width="800">
 </p>
 
-> All Q4_K_M benchmarks: single AMD RX 7900 XTX, N=10 paired interleaved runs,
-> 95% confidence intervals, tg128. Full data with p-values:
+> All benchmarks: single AMD RX 7900 XTX, paired interleaved runs, tg128.
+> Full statistical data with 95% CIs and p-values:
 > [benchmarks.md](docs/tmac/benchmarks.md)
 
 ### Q4_K_M — the most popular quantization
@@ -43,18 +43,40 @@ same models, same output quality, same commands.
 </p>
 
 <details>
-<summary>Exact numbers (click to expand)</summary>
+<summary>Validated benchmarks — N=10, 95% CI (click to expand)</summary>
+
+Measured against `llama.cpp @ 47eb12b95` (Feb 2026). These are the statistically
+rigorous reference measurements with paired t-tests and 95% confidence intervals.
 
 | Model | Size | What it is | Stock | T-MAC | Speedup |
 |-------|-----:|------------|------:|------:|--------:|
 | Llama 3.2 1B | 1.24B | Small, fast model | 373 t/s | 449 t/s | **+20.3%** |
-| Codestral 22B | 22.25B | Code generation | 40.0 t/s | 45.7 t/s | **+14.1%** |
+| GLM-4.7-Flash | ~16B | MoE+MLA | 87.4 t/s | 101 t/s | **+15.2%** |
 | OLMoE-1B-7B | 6.92B | Mixture-of-Experts | 325 t/s | 373 t/s | **+14.8%** |
-| GLM-4.7-Flash | ~16B | Mixture-of-Experts | 87.4 t/s | 100.7 t/s | **+15.2%** |
-| Qwen3.5-35B-A3B | ~35B | Mixture-of-Experts | 75.0 t/s | 83.7 t/s | **+11.7%** |
-| DeepSeek-V2-Lite | 16B | MoE+MLA | 155 t/s | 180 t/s | **+15.9%** |
-| Qwen3.5-9B | 9B | Dense | 69.8 t/s | 77.6 t/s | **+11.1%** |
+| Codestral 22B | 22.25B | Code generation | 40.0 t/s | 45.7 t/s | **+14.1%** |
+| Ministral 14B | 14B | Dense | 64.0 t/s | 73.0 t/s | **+14.1%** |
 | QwQ-32B | 32B | Reasoning model | 29.9 t/s | 33.9 t/s | **+13.5%** |
+
+</details>
+
+<details>
+<summary>Current performance — latest models, N=5 (click to expand)</summary>
+
+Measured against `llama.cpp @ b6c83aad5` (Apr 2026). Upstream changes between
+baselines affect both Stock and T-MAC throughput — these numbers are not directly
+comparable to the validated table above.
+
+| Model | Size | What it is | Stock | T-MAC | Speedup |
+|-------|-----:|------------|------:|------:|--------:|
+| Qwen3 30B-A3B | ~30B | MoE, coding | 98.0 t/s | 133 t/s | **+36.1%** |
+| DeepSeek-V2-Lite | 16B | MoE+MLA | 131 t/s | 173 t/s | **+31.6%** |
+| Qwen3 14B | 14B | Dense | 55.0 t/s | 71.7 t/s | **+30.5%** |
+| Qwen3 32B | 32B | Dense, reasoning | 26.1 t/s | 33.4 t/s | **+28.0%** |
+| Qwen3.5 27B | 27B | Dense | 29.3 t/s | 34.9 t/s | **+19.0%** |
+| Qwen3.5 35B-A3B | ~35B | Mixture-of-Experts | 90.9 t/s | 107 t/s | **+17.2%** |
+| Nemotron-3 Nano 30B | ~30B | MoE | 125 t/s | 145 t/s | **+16.0%** |
+| Qwen3 8B | 8B | Dense | 95.4 t/s | 109 t/s | **+14.3%** |
+| Qwen3.5 9B | 9B | Dense | 86.4 t/s | 93.2 t/s | **+7.8%** |
 
 </details>
 
@@ -129,8 +151,9 @@ T-MAC works with all major LLM architectures — not just standard transformer m
 
 | Architecture | Example Models | Status |
 |-------------|----------------|--------|
-| Dense transformer | Llama, Codestral, QwQ, Qwen3.5 | Validated |
-| Mixture-of-Experts (MoE) | OLMoE, Mixtral, GLM-4.7, Qwen3.5-A3B | Validated |
+| Dense transformer | Llama, Codestral, QwQ, Qwen3, Qwen3.5 | Validated |
+| Mixture-of-Experts (MoE) | OLMoE, Mixtral, Qwen3-A3B, Qwen3.5-A3B, Nemotron-3 | Validated |
+| MoE + MLA | GLM-4.7, DeepSeek-V2 | Validated (partial benefit on MLA layers) |
 | State-Space (SSM) | Mamba, Falcon H1, Jamba | Validated |
 | Linear attention | RWKV-6 | Validated |
 | Vision-Language (VLM) | Qwen2-VL | Validated |
@@ -295,7 +318,7 @@ I wanted to know: how much performance is being left on the table? Not as a
 theoretical exercise, but as an actual measured answer with real models and
 real workloads.
 
-Turns out: 10-37%, depending on model and quantization. That's not a rounding
+Turns out: 10-55%, depending on model and quantization. That's not a rounding
 error. That's hundreds of tokens per second on everyday models.
 
 This project started from curiosity and the simple joy of making something faster.
