@@ -248,6 +248,11 @@ for chat and roleplay with LLMs.
 - **Alignment constraints:** Some quantization types require hidden dimensions
   divisible by 256. Models with non-standard dimensions partially fall back
   to stock. Most popular models are unaffected.
+- **MLA architectures (GLM-4.7, DeepSeek-V2):** MLA attention uses small KV
+  projection dimensions (ne0=192–512) where T-MAC's warp-per-row kernel has
+  poor utilization. These layers fall back to stock. Expert FFN layers still
+  benefit, but the net speedup is reduced or negative depending on the
+  dense/expert compute ratio. Fix included in upcoming v3.0.
 - **MoE fine-grained experts:** Models with many small experts (e.g. 256 experts
   with FFN < 1024) may see reduced or no benefit on IQ/Q3 types. Dense and shared
   layers still benefit. One known regression: Hunyuan-A13B Q3_K_M (-4.9%). Use
