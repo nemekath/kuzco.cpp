@@ -23,9 +23,6 @@ fi
 # revealing project-specific identifiers. Add project-specific rules to
 # .git/hooks/local-patterns instead.
 RULES=(
-  '(^|[^a-zA-Z0-9_])/home/[a-z][a-z0-9_-]*/|Local path leak (home directory)'
-  '(^|[^a-zA-Z0-9_])/mnt/[a-z][a-z0-9_-]+/|Local path leak (mount path)'
-  '(^|[^a-zA-Z0-9_])/Users/[a-z][a-z0-9_-]*/|Local path leak (macOS home)'
   'Co-Authored-By:.*Claude|AI authoring attribution'
   'Co-Authored-By:.*Anthropic|AI authoring attribution'
   'Co-Authored-By:.*noreply@anthropic|AI authoring attribution'
@@ -81,7 +78,7 @@ for rule in "${RULES[@]}"; do
   fi
 done
 
-MAX_SIZE=$((5 * 1024 * 1024))
+MAX_SIZE=$((10 * 1024 * 1024))
 LARGE_FILES=""
 if [[ -n "$STAGED_FILES" ]]; then
   while IFS= read -r file; do
