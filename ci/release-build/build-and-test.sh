@@ -125,13 +125,22 @@ for bin in "${BINARIES[@]}"; do
     fi
 done
 
-# Libraries
-for lib in lib/*.so*; do
-    [ -f "$lib" ] || continue
-    cp "$lib" "${STAGING}/lib/"
+# Libraries — post-upstream-refactor llama.cpp places shared libs under build/bin/
+# (e.g. libllama.so, libggml-hip.so). Older layouts kept them under build/lib/.
+# Glob both to stay forward/backward-compatible.
+shopt -s nullglob
+for lib in bin/*.so* lib/*.so*; do
+    # Preserve symlinks as symlinks (don't cp -L which would dereference)
+    cp -P "$lib" "${STAGING}/lib/"
+    dst="${STAGING}/lib/$(basename "$lib")"
     # Only strip regular files, not symlinks
-    [ -L "${STAGING}/lib/$(basename "$lib")" ] || strip "${STAGING}/lib/$(basename "$lib")" 2>/dev/null || true
+    [ -L "$dst" ] || strip "$dst" 2>/dev/null || true
 done
+shopt -u nullglob
+
+if ! ls "${STAGING}/lib/"*.so* >/dev/null 2>&1; then
+    err "Packaging failure: no shared libraries copied to staging/lib/"
+fi
 
 # Metadata
 cp "${SRC_DIR}/LICENSE" "${STAGING}/" 2>/dev/null || true
