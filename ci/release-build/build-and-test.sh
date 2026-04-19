@@ -165,3 +165,34 @@ cd "${STAGING}/.."
 TARBALL="${OUT_DIR}/${PACKAGE_NAME}.tar.gz"
 tar czf "$TARBALL" -C staging .
 log "Package created: ${TARBALL} ($(du -h "$TARBALL" | cut -f1))"
+
+# Post-packaging smoke test: extract the tarball to a scratch directory
+# and run llama-bench from there using ONLY the shipped libraries. Catches
+# packaging regressions where the in-tree build works but the tarball is
+# unusable (e.g. empty lib/, broken rpath, missing symlinks).
+log "Post-packaging smoke test: extract and run from tarball"
+VERIFY_DIR=$(mktemp -d -t kuzco-verify-XXXX)
+trap 'rm -rf "$VERIFY_DIR"' EXIT
+
+tar xzf "$TARBALL" -C "$VERIFY_DIR"
+
+if ! ls "${VERIFY_DIR}/lib/"*.so* >/dev/null 2>&1; then
+    err "Packaging regression: tarball ${TARBALL} ships empty lib/"
+fi
+if [ ! -x "${VERIFY_DIR}/bin/llama-bench" ]; then
+    err "Packaging regression: tarball ${TARBALL} missing bin/llama-bench"
+fi
+
+# Run with ONLY the tarball's own lib/ dir on LD_LIBRARY_PATH — deliberately
+# not inheriting the in-tree build paths, so we verify the tarball is
+# self-contained (except for the system ROCm runtime which users install
+# separately per the README).
+if [ "$SKIP_TESTS" != "1" ]; then
+    VERIFY_OUT=$(LD_LIBRARY_PATH="${VERIFY_DIR}/lib:/opt/rocm/lib/llvm/lib" \
+        "${VERIFY_DIR}/bin/llama-bench" -m "$SMOKE" -p 0 -n 16 -ngl 99 -r 1 \
+        -o csv 2>&1 | tail -1 | awk -F',' '{print $(NF-1)}' | tr -d '"')
+    if [[ -z "$VERIFY_OUT" || "$VERIFY_OUT" = "0.000000" ]]; then
+        err "Packaging regression: llama-bench from tarball failed to run"
+    fi
+    log "Post-packaging smoke test passed (tarball llama-bench reports ${VERIFY_OUT} t/s)"
+fi
