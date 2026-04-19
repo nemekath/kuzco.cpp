@@ -2,6 +2,31 @@
 
 > Versions v1.0–v1.6 were development milestones prior to the public fork migration.
 
+## v2.2.0 — Simple-Quant Guard Fix + Tunable ne0 Threshold
+
+**Release date:** 2026-04-19
+
+### Highlights
+
+- **Off-by-one fix on simple-quant dispatch guard**: the `ne0 < 512` check admitted ne0 = 512 into the T-MAC kernel, where per-warp efficiency is below the crossover with upstream 8-warp MMVQ on RDNA3. New default threshold is 513, matching the Q4_K path's `nb_sub < 24` handling of the same boundary (nb_sub = 16 at ne0 = 512 already rejects). MLA projections with small KV dimensions (ne0 = 192, 512) now correctly fall back to stock MMVQ, resolving the prior "reduced or negative net speedup" note on MoE + MLA architectures.
+- **`GGML_HIP_TMAC_NE0_MIN` env-var**: per-run override of the simple-quant dispatch threshold. Same static-const init-once pattern as `GGML_HIP_NO_TMAC`, zero hot-path cost. Accepts 0 for force-all mode; invalid values fall back to the 513 default with a one-shot warning.
+
+### Fixes
+
+- Fix off-by-one in simple-quant dispatch guard (`tmac.cuh`): `ne0 < 512` → `ne0 < ne0_min_simple()` with default 513.
+- Fix `tmac_log_miss` diagnostic to report `ne0_below_min` when the threshold rejects a simple-quant tensor, instead of misclassifying as `can_dispatch_other`.
+- Fix `strtoll` parsing in the env-var reader to detect ERANGE overflow/underflow in addition to the existing end/sign validations.
+
+### Features
+
+- New env-var `GGML_HIP_TMAC_NE0_MIN=<n>` for runtime threshold tuning.
+
+### Documentation
+
+- README "Known Limitations" MLA bullet rewritten to describe current dispatch behavior. The prior "reduced or negative speedup" note and the "fix included in upcoming v3.0" pointer are removed.
+
+---
+
 ## v2.1.0 — Speculative Decoding + MMQ Fix
 
 **Release date:** 2026-03-17
