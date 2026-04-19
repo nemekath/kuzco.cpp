@@ -37,6 +37,44 @@ static inline bool ggml_cuda_tmac_enabled() {
         ggml_cuda_info().devices[ggml_cuda_get_device()].cc);
 }
 
+// One-shot debug log — replaces repeated static bool + GGML_LOG_DEBUG boilerplate.
+// Usage: TMAC_LOG_ONCE("[TMAC] message %s\n", arg)
+// Defined here (before first use) rather than below — needed by ggml_cuda_tmac_ne0_min_simple().
+#define TMAC_LOG_ONCE(...) do { \
+    static bool _tmac_logged = false; \
+    if (!_tmac_logged) { \
+        GGML_LOG_DEBUG(__VA_ARGS__); \
+        _tmac_logged = true; \
+    } \
+} while (0)
+
+// ne0 minimum threshold for simple quant types (Q4_0/Q8_0/Q5_0/Q5_1/MXFP4).
+// Default 513: the smallest ne0 where T-MAC's warp-per-row kernel beats upstream
+// 8-warp MMVQ on RDNA3. The earlier "< 512" threshold was off by one — it admitted
+// ne0 = 512, which sits below the per-warp efficiency crossover (fewer than 16 full
+// 32-element blocks per row). Raising to 513 aligns this guard with the Q4_K path's
+// behavior at the same boundary, where nb_sub < 24 already rejects ne0 = 512
+// (nb_sub = 16 for 8-subblock super-block types).
+// Overridable via GGML_HIP_TMAC_NE0_MIN for tuning and debugging. Semantics:
+// NE0_MIN=X means T-MAC dispatches when ne0 >= X (strict < guard below).
+// Accepts 0 (force-all mode); the ne0 % 32 alignment check downstream still applies.
+// Pattern mirrors ggml_cuda_tmac_enabled() above: static const, init-once, zero
+// hot-path cost.
+static inline int64_t ggml_cuda_tmac_ne0_min_simple() {
+    static const int64_t min_ne0 = [](){
+        const char * s = getenv("GGML_HIP_TMAC_NE0_MIN");
+        if (!s || *s == '\0') return (int64_t)513;
+        char * end = nullptr;
+        long long v = strtoll(s, &end, 10);
+        if (end == s || *end != '\0' || v < 0) {
+            TMAC_LOG_ONCE("[TMAC] GGML_HIP_TMAC_NE0_MIN=\"%s\" invalid (expected non-negative integer), using default 513\n", s);
+            return (int64_t)513;
+        }
+        return (int64_t)v;
+    }();
+    return min_ne0;
+}
+
 // Type-check: is this a quant type T-MAC supports?
 static inline bool ggml_cuda_tmac_is_supported_type(ggml_type type) {
     return type == GGML_TYPE_Q4_0 || type == GGML_TYPE_Q8_0 || type == GGML_TYPE_Q5_1
@@ -77,24 +115,15 @@ static inline bool ggml_cuda_tmac_can_dispatch(ggml_type type, int64_t ne0) {
         return true;
     }
     // Q4_0/Q8_0/Q5_0/Q5_1/MXFP4: 32-element blocks.
-    // Warp efficiency guard for simple quant types: ne0 < 512 means fewer than
-    // 16 blocks per row — the per-warp reduction overhead exceeds bandwidth savings,
-    // especially on RDNA3 where upstream MMVQ now uses 8 warps (commit 617db241a).
-    // This prevents regressions on MLA architectures (GLM, DeepSeek-V2) with small
-    // KV projection dimensions (ne0=192, ne0=512).
-    if (ne0 < 512) return false;
+    // Warp efficiency guard for simple quant types: ne0 <= 512 (i.e. < 513) means 16
+    // or fewer full 32-element blocks per row — the per-warp reduction overhead exceeds
+    // bandwidth savings, especially on RDNA3 where upstream MMVQ now uses 8 warps
+    // (commit 617db241a). MLA architectures with small KV projection dimensions
+    // (ne0 = 192, 512) correctly fall back to stock MMVQ at this threshold.
+    // Threshold is tunable via GGML_HIP_TMAC_NE0_MIN — see ggml_cuda_tmac_ne0_min_simple() above.
+    if (ne0 < ggml_cuda_tmac_ne0_min_simple()) return false;
     return ne0 % 32 == 0;
 }
-
-// One-shot debug log — replaces repeated static bool + GGML_LOG_DEBUG boilerplate.
-// Usage: TMAC_LOG_ONCE("[TMAC] message %s\n", arg)
-#define TMAC_LOG_ONCE(...) do { \
-    static bool _tmac_logged = false; \
-    if (!_tmac_logged) { \
-        GGML_LOG_DEBUG(__VA_ARGS__); \
-        _tmac_logged = true; \
-    } \
-} while (0)
 
 
 
