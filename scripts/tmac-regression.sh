@@ -119,12 +119,34 @@ if [[ ! -x "$BENCH" ]]; then
     exit 1
 fi
 
+# Partition MODELS into available vs missing. Missing models are logged as
+# warnings and skipped rather than aborting the whole regression run — a
+# sparse model zoo (zero-byte GGUFs, CI-download failures, etc.) should not
+# prevent testing whatever IS present. If NOTHING is present, bail out.
+AVAILABLE_MODELS=()
+MISSING_MODELS=()
 for model in "${MODELS[@]}"; do
-    if [[ ! -f "$model" ]]; then
-        echo "ERROR: model file not found: $model"
-        exit 1
+    if [[ -f "$model" && -s "$model" ]]; then
+        AVAILABLE_MODELS+=("$model")
+    else
+        MISSING_MODELS+=("$model")
     fi
 done
+
+if (( ${#MISSING_MODELS[@]} > 0 )); then
+    echo "WARN: ${#MISSING_MODELS[@]} model file(s) missing or empty, skipping:"
+    for m in "${MISSING_MODELS[@]}"; do
+        echo "  - $m"
+    done
+fi
+
+if (( ${#AVAILABLE_MODELS[@]} == 0 )); then
+    echo "ERROR: no models available to test (all ${#MODELS[@]} missing)"
+    exit 1
+fi
+
+# Replace MODELS with the filtered list for the rest of the script
+MODELS=("${AVAILABLE_MODELS[@]}")
 
 # ─── Environment snapshot (P15 QoS driver tracking) ──────────────────
 ROCM_VER=$(cat /opt/rocm/.info/version 2>/dev/null || echo "unknown")

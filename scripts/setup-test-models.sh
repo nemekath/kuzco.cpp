@@ -37,6 +37,7 @@ declare -A MODELS=(
     [1B-IQ3_S]="Llama-3.2-1B-Instruct-IQ3_S"
     [1B-IQ3_XXS]="Llama-3.2-1B-Instruct-IQ3_XXS"
     [1B-IQ4_XS]="Llama-3.2-1B-Instruct-IQ4_XS"
+    [1B-Q3_K_L]="Llama-3.2-1B-Instruct-Q3_K_L"
     # Codestral 22B
     [22B-Q4_0]="codestral-22b-v0.1-q4_0"
     [22B-Q4_K_M]="Codestral-22B-v0.1-Q4_K_M"
