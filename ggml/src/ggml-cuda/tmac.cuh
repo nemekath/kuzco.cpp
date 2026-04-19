@@ -1,5 +1,6 @@
 #pragma once
 #include "common.cuh"
+#include <cerrno>
 
 #ifdef GGML_HIP_TMAC
 
@@ -65,9 +66,10 @@ static inline int64_t ggml_cuda_tmac_ne0_min_simple() {
         const char * s = getenv("GGML_HIP_TMAC_NE0_MIN");
         if (!s || *s == '\0') return (int64_t)513;
         char * end = nullptr;
+        errno = 0;
         long long v = strtoll(s, &end, 10);
-        if (end == s || *end != '\0' || v < 0) {
-            TMAC_LOG_ONCE("[TMAC] GGML_HIP_TMAC_NE0_MIN=\"%s\" invalid (expected non-negative integer), using default 513\n", s);
+        if (errno == ERANGE || end == s || *end != '\0' || v < 0) {
+            TMAC_LOG_ONCE("[TMAC] GGML_HIP_TMAC_NE0_MIN=\"%s\" invalid (expected non-negative integer in range), using default 513\n", s);
             return (int64_t)513;
         }
         return (int64_t)v;
@@ -594,7 +596,11 @@ static inline void tmac_log_miss(ggml_type type, int64_t ne0, const char * site)
                 else reason = "can_dispatch_other";
             }
         } else {
-            if (ne0 % 32 != 0 || ne0 < 128) reason = "ne0_align_32";
+            // Simple-quant miss categorization.
+            // Keep in sync with ggml_cuda_tmac_can_dispatch()'s simple-quant branch:
+            //   reject if not 32-aligned, or if ne0 < ne0_min_simple().
+            if (ne0 % 32 != 0) reason = "ne0_align_32";
+            else if (ne0 < ggml_cuda_tmac_ne0_min_simple()) reason = "ne0_below_min";
             else reason = "can_dispatch_other";
         }
     } else {
