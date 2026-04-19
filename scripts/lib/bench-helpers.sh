@@ -7,12 +7,24 @@
 
 # Parse avg_ts from llama-bench CSV output (header + data line).
 # Usage: parse_avg_ts "$raw_csv_output"
+#
+# Uses Python's csv module to handle quoted commas correctly — llama-bench
+# puts gpu_info like "AMD Radeon RX 7900 XTX, AMD Radeon RX 7900 XTX" (comma
+# inside quotes) when HIP_VISIBLE_DEVICES=0,1, which breaks naive awk -F','
+# splitting and silently misaligns the avg_ts column lookup.
 parse_avg_ts() {
     local avg_ts
-    avg_ts=$(echo "$1" | awk -F',' '
-        NR==1 { for(i=1;i<=NF;i++) if($i=="avg_ts") col=i }
-        NR==2 && col { gsub(/"/, "", $col); print $col }
-    ')
+    avg_ts=$(printf '%s' "$1" | python3 -c '
+import csv, sys
+reader = csv.reader(sys.stdin)
+try:
+    header = next(reader)
+    col = header.index("avg_ts")
+    row = next(reader)
+    print(row[col])
+except (StopIteration, ValueError):
+    sys.exit(1)
+')
     if [[ -z "$avg_ts" ]]; then
         echo "ERROR: failed to parse avg_ts from llama-bench output" >&2
         return 1
