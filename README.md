@@ -153,7 +153,7 @@ T-MAC works with all major LLM architectures — not just standard transformer m
 |-------------|----------------|--------|
 | Dense transformer | Llama, Codestral, QwQ, Qwen3, Qwen3.5 | Validated |
 | Mixture-of-Experts (MoE) | OLMoE, Mixtral, Qwen3-A3B, Qwen3.5-A3B, Nemotron-3 | Validated |
-| MoE + MLA | GLM-4.7, DeepSeek-V2 | Validated (partial benefit on MLA layers) |
+| MoE + MLA | GLM-4.7, DeepSeek-V2 | Validated |
 | State-Space (SSM) | Mamba, Falcon H1, Jamba | Validated |
 | Linear attention | RWKV-6 | Validated |
 | Vision-Language (VLM) | Qwen2-VL | Validated |
@@ -248,11 +248,12 @@ for chat and roleplay with LLMs.
 - **Alignment constraints:** Some quantization types require hidden dimensions
   divisible by 256. Models with non-standard dimensions partially fall back
   to stock. Most popular models are unaffected.
-- **MLA architectures (GLM-4.7, DeepSeek-V2):** MLA attention uses small KV
-  projection dimensions (ne0=192–512) where T-MAC's warp-per-row kernel has
-  poor utilization. These layers fall back to stock. Expert FFN layers still
-  benefit, but the net speedup is reduced or negative depending on the
-  dense/expert compute ratio. Fix included in upcoming v3.0.
+- **MLA small KV projections fall back to stock:** the dispatch guard rejects
+  simple-quant tensors with small input dimensions (`ne0 ≤ 512`) because
+  T-MAC's warp-per-row kernel falls below the efficiency crossover with upstream
+  MMVQ at those sizes on RDNA3. All other layers (Q4_K, expert FFN, dense
+  blocks) dispatch normally. Override the threshold at runtime via
+  `GGML_HIP_TMAC_NE0_MIN=<value>` if needed for experimentation.
 - **MoE fine-grained experts:** Models with many small experts (e.g. 256 experts
   with FFN < 1024) may see reduced or no benefit on IQ/Q3 types. Dense and shared
   layers still benefit. One known regression: Hunyuan-A13B Q3_K_M (-4.9%). Use
